@@ -98,7 +98,7 @@ pod 'NestedPageViewController'
 pod install
 ```
 
-注意：如果CocoaPods的方式安装，编译报错：Xcode error when building app: line 7: /resources-to-copy-Project.txt: Permission denied，请在你的主工程中的Targets -> Build Settings -> User Script Sandboxing 改为No
+注意：如果CocoaPods的方式安装，编译报错：Xcode error when building app: line 7: /resources-to-copy-Project.txt: Permission denied，或者其他类似权限问题，请在你的主工程中的Targets -> Build Settings -> User Script Sandboxing 改为No
 
 ## 使用方法
 
