@@ -1,77 +1,150 @@
-----------------------------------
-|                                |                                          
-|                                |
-|                                |
-|                                |   cover
-|                                |
-|                                |
-|                                |
-----------------------------------
-|       |       |       |        |   tab                                      
-----------------------------------
-|                                |                                          
-|                                |   containerScrollView的header（可能有可能没有）
-|                                |   这个containerScrollView不是指框架内的containerScrollView，是2个子scrollView的父视图
-|                                |
-----------------------------------
-|      |                         |                                          
-|      |                         |
-|      |                         |
-|      |                         |
-|      |                         |                                          
-|      |                         |
-|      |                         |   左collectionView + 右collectionView
-|      |                         |
-|      |                         |                                          
-|      |                         |
-|      |                         |
-|      |                         |
-|      |                         |                                          
-|      |                         |
-|      |                         |
-|      |                         |
-|      |                         |                                          
-|      |                         |
-|      |                         |
-|      |                         |
-----------------------------------
+# 外卖 App 点餐页
 
+## 核心结构
 
-类似美团、饿了吗的商品点餐页，在第一个tab下的子VC中有2个子scrollView，左边是分类，右边是列表。并切滑动cover区域时有一个小细节：如果左边或者右边子scrollView的偏移量是非初始状态，也就是contentOffset.y是大于0时，这时上下滑动cover的右边区域（手指触摸点的x值在右边子scrollView的区域内），会先滚动右边子scrollView，滑动cover的左边区域（手指触摸点的x值在左边子scrollView的区域内，会先滚动左边子scrollView
+这个页面的关键不是“双列表”，而是“双列表 + 一个明确的主滚动对象”。
 
-我给出一个实现思路（针对第一个子VC）：
-最底部是一个容器scrollView（作为本框架中NestedPageScrollable协议里的的nestedPageContentScrollView），其上面添加了2个子scrollView，y值均为0即可，因为本框架会自动设置容器scrollView的contentInset.top和contentOffset.y，2个子scrollVIew会自动显示在tab栏的下方。
+架构关系如下：
 
-3个scrollView大致层级+约束关系如下：
+```text
+PageViewController
+└── 点餐页 VC.view
+    ├── rightListView         // 右侧商品列表，主滚动对象
+    └── leftListContainer     // 左侧列表的父视图，不是 rightListView 的子视图
+        └── leftListView      // 左侧分类列表
+```
 
-View (Controller.view)
-│
-└── containerScrollView (UIScrollView)
-    │  edges = view.edges
-    │
-    └── contentView (UIView)
-        │  edges = containerScrollView.contentLayoutGuide.edges
-        │  width = containerScrollView.frameLayoutGuide.width
-        │
-        ├── leftScrollView (UITableView/UICollectionView)
-        │   top = contentView.top
-        │   bottom = contentView.bottom
-        │   leading = contentView.leading
-        │   width = 30% screen width
-        │
-        └── rightScrollView (UITableView/UICollectionView)
-            top = contentView.top
-            bottom = contentView.bottom
-            leading = leftTableView.trailing
-            trailing = contentView.trailing
-            width = 70% screen width
+再强调一次：
 
-布局完成后，需要保证contentView的高度被撑开，这样containScrollView才会有contentSzie，可以手动计算contentView的高度，也可以重写子scrollView的intrinsicContentSize返回contentSize。
-复杂的点在于containerView和2个子scrollView的滚动处理：
-1、2个子scrollView禁用滚动，只处理容器scrollView的滚动。这种情况如果右边子scrollView是collectionView并且有多个分组时，sectionHeader需要吸顶，由于collectionView自身不能滚动，可能需要手动计算sectionHeader的吸顶位置
-2、containerView和2个子scrollView的滚动可同时发生，但是在合适的时机需要锁定另一个scrollView的滚动...
+- 左侧列表不是右侧列表的子视图
+- 左侧列表和右侧列表是兄弟视图
+- 左侧列表有自己的父视图
+- 右侧列表负责承接页面主滚动
 
-以上思路只是一个初步思考，需要通过实践去验证，由于时间问题，该示例没有去完成，以后有机会再尝试尝试。
+之所以左侧要有单独父视图，不只是为了摆放方便，更是为了做裁剪、层级控制和命中区域控制。否则左侧很容易和顶部吸顶区域打架，也容易让人误以为它只是右侧内容上的一个悬浮子 view。
 
+## 为什么右侧是主滚动对象
 
+因为用户真正浏览的是商品，不是分类。
 
+所以职责应该这样分：
+
+- 右侧商品列表负责页面主滚动
+- 左侧分类列表负责导航和状态反馈
+
+这比“左右两个列表地位完全对等”更符合真实交互。
+
+## 顶部区域和列表的关系
+
+页面上层还有一套公共结构：
+
+```text
+cover
+tab
+点餐内容区
+```
+
+其中点餐内容区内部再拆成左右两列。
+
+更准确地说，应该理解为：
+
+```text
+页面整体
+├── cover
+├── tab
+└── 点餐页内容
+    ├── rightListView
+    └── leftListContainer
+        └── leftListView
+```
+
+也就是说，左侧列表和右侧列表都属于“点餐页内容”这一层，不属于 `cover`，也不属于彼此。
+
+## 滚动的核心思想
+
+这个页面不能理解成“两个列表各滚各的”，也不能理解成“两个列表永远强绑定同一个 offset”。
+
+正确的理解是分两段。
+
+### 1. 顶部还没收起时
+
+这时候页面目标是先把 `cover` 推走，让 `tab` 吸顶。
+
+因此左右列表要表现得像一个整体：
+
+- 左边滚，右边跟
+- 右边滚，左边跟
+
+这时同步的是位移。
+
+### 2. 顶部收起后
+
+这时候页面目标从“收起顶部”切换成“浏览商品”。
+
+因此不应该继续强绑位移，而应该改成：
+
+- 右侧继续独立滚商品
+- 左侧不再强制同步位移
+- 左侧只根据右侧当前位置更新高亮
+
+这时同步的是状态，不是位移。
+
+这一点是整个方案最核心的地方。
+
+## 左侧列表为什么不能简单当成右侧的附属视图
+
+如果把左侧直接理解成右侧上的一个子视图，问题会很多：
+
+- 左侧自己的滚动不好处理
+- 顶部区域收起时，两边的联动边界不清楚
+- 吸顶后的层级关系容易混乱
+- 左侧进入 tab 区域时不容易裁剪
+
+所以更合理的做法是：
+
+- 右侧列表独立作为主滚动区
+- 左侧列表独立存在
+- 两者通过联动逻辑协作，而不是通过父子关系耦合
+
+## 左右两列真正的关系
+
+左侧和右侧不是“内容并列”关系，而是：
+
+- 左侧是分类导航
+- 右侧是商品内容
+
+所以经典交互应该是：
+
+- 左点右滚
+- 右滚左亮
+
+最终以右侧当前位置作为真实内容位置，左侧只是表达这个位置。
+
+## 分组标题的关键点
+
+右侧商品列表通常会有分组标题，但这里不能机械地套系统默认吸顶。
+
+因为页面顶部已经有 `cover + tab` 的吸顶体系，如果分组标题再直接走默认吸顶，很容易出现：
+
+- 吸顶位置不对
+- 和 tab 冲突
+- 多层吸顶过渡不自然
+
+所以分组标题的处理原则应该是：
+
+- 服从整页吸顶结构
+- 必要时自己接管展示逻辑
+
+重点不是“必须用系统 sectionHeader”，重点是最终吸顶效果是否正确。
+
+## 一句话总结
+
+这个页面的本质是：
+
+```text
+一个主商品列表
++ 一个独立分类列表
++ 一个左/右分阶段联动机制
+```
+
+只要这三个点立住，具体实现细节都可以继续调整。
