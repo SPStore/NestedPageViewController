@@ -9,7 +9,7 @@
   <a href="https://swift.org/"><img src="https://img.shields.io/badge/Swift-5.0-orange.svg"></a>
   <a href="https://developer.apple.com/ios/"><img src="https://img.shields.io/badge/iOS-13.0%2B-blue.svg"></a>
   <a href="https://github.com/SPStore/NestedPageViewController/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg"></a>
-  <a href="https://cocoapods.org/pods/NestedPageViewController"><img src="https://img.shields.io/badge/pod-v2.0.0-brightgreen.svg"></a>
+  <a href="https://cocoapods.org/pods/NestedPageViewController"><img src="https://img.shields.io/badge/pod-v2.0.1-brightgreen.svg"></a>
   <a href="https://swift.org/package-manager/"><img src="https://img.shields.io/badge/SPM-compatible-brightgreen.svg"></a>
 </p>
 

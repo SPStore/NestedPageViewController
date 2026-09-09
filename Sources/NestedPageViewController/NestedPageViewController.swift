@@ -349,21 +349,18 @@ open class NestedPageViewController: UIViewController {
         
         let viewWidth = containerView.bounds.width
         let viewHeight = containerView.bounds.height
-        
-        // 确保headerContentView在正确的位置
-        if let pageHeader = headerManager.pageHeader(at: currentIndex) {
-            pageHeader.frame = CGRect(x: 0, y: -headerManager.pageHeaderHeight, width: viewWidth, height: headerManager.pageHeaderHeight)
-        }
-        headerManager.updateHeaderContentViewFrame()
+
         // 获取数据源信息
         headerManager.fetchHeaderHeights()
-        
-        // 重新布局头部视图
-        headerManager.layoutPageHeader()
-        headerManager.layoutHeaderViews()
-        
+
+        headerManager.updateHeaderContentViewFrame()
+
         // 更新子控制器布局
         childManager.updateChildrenLayouts()
+
+        // pageHeader 和 pin 依赖子滚动视图的最终位置，必须在子控制器完成布局后再计算。
+        headerManager.layoutPageHeader()
+        headerManager.layoutHeaderViews()
         
         // 重置内部状态变量
         headerManager.previousPinY = headerManager.pin.frame.minY
