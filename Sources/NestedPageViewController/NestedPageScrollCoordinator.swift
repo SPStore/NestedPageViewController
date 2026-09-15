@@ -261,8 +261,10 @@ class NestedPageScrollCoordinator {
     }
     
     private func shouldHandleCurrentScrollEvent(with scrollView: UIScrollView) -> Bool {
-        guard !isHorizontalScrolling,
-              let currentContentScrollView = viewController?.currentContentScrollView,
+        guard let viewController,
+              !viewController.isUpdatingLayouts,
+              !isHorizontalScrolling,
+              let currentContentScrollView = viewController.currentContentScrollView,
               scrollView == currentContentScrollView else {
             return false
         }
@@ -289,6 +291,7 @@ class NestedPageScrollCoordinator {
     func handleHorizontalScrollDidScroll(_ scrollView: UIScrollView) {
         guard let viewController = viewController,
               let headerManager = headerManager,
+              !viewController.isUpdatingLayouts,
               scrollView == viewController.containerScrollView else { return }
         
         guard viewController.isRotating == false else { return }

@@ -190,6 +190,9 @@ open class NestedPageViewController: UIViewController {
     }
     
     internal var isRotating: Bool = false
+
+    /// 内部批量布局会主动修改子列表偏移，此时不应触发页面间的滚动联动。
+    internal var isUpdatingLayouts: Bool = false
         
     private let headerManager: NestedPageHeaderManager
     private let childManager: NestedPageChildManager
@@ -344,7 +347,10 @@ open class NestedPageViewController: UIViewController {
     /// - 例如头部视图高度发生变化时，可以调用此方法。
     /// - 设备旋转时会自动调用。
     open func updateLayouts() {
-        
+        let wasUpdatingLayouts = isUpdatingLayouts
+        isUpdatingLayouts = true
+        defer { isUpdatingLayouts = wasUpdatingLayouts }
+
         setupContainerFrame()
         
         let viewWidth = containerView.bounds.width
