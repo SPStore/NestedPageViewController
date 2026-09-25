@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'NestedPageViewController'
-  s.version          = '2.0.2'
+  s.version          = '2.0.3'
   s.summary          = 'A nested page view controller for iOS with smooth scrolling coordination'
   s.description      = <<-DESC
                        NestedPageViewController provides a smooth nested scrolling experience
@@ -24,5 +24,4 @@ Pod::Spec.new do |s|
   s.frameworks = 'UIKit', 'Combine'
   s.requires_arc = true
 end
-
 

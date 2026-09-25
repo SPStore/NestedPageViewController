@@ -142,6 +142,8 @@ class NestedPageHeaderManager {
         // 布局header子视图
         coverView?.frame = CGRect(x: 0, y: 0, width: viewController.containerView.bounds.width, height: coverHeight)
         tabStrip?.frame = CGRect(x: 0, y: coverHeight, width: viewController.containerView.bounds.width, height: tabHeight)
+        tabStrip?.layoutIfNeeded()
+        (tabStrip as? NestedPageTabStripView)?.layoutIndicator()
     }
     
     func updateHeaderContentViewFrame() {
@@ -167,13 +169,13 @@ class NestedPageHeaderManager {
             contentScrollView.addSubview(pageHeader!)
             
             // 等于fixedContainer，说明正在横向滚动，横向滚动时，必须保持父视图为fixedContainer
-            if headerContentView.superview != fixedContainer {
+            if index == viewController.currentIndex, headerContentView.superview != fixedContainer {
                 headerContentView.frame = CGRect(x: 0, y: 0, width: headerWidth, height: pageHeaderHeight)
                 pageHeader?.addSubview(headerContentView)
             }
         }
     }
-    
+
     // MARK: - Header Position Management
     
     func movePageHeaderToPageHeaderByPin(currentIndex: Int) {
