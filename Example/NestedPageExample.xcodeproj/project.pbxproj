@@ -48,7 +48,6 @@
 		BBE154B22E6C1837003815C5 /* PreloadViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBE154B12E6C1837003815C5 /* PreloadViewController.swift */; };
 		BBE154B42E6C1D43003815C5 /* BuiltInTabStripViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBE154B32E6C1D43003815C5 /* BuiltInTabStripViewController.swift */; };
 		BBE154B62E6C5E65003815C5 /* FixedHeaderViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBE154B52E6C5E65003815C5 /* FixedHeaderViewController.swift */; };
-		C02800010000000000000001 /* ShortContentViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C02800010000000000000002 /* ShortContentViewController.swift */; };
 		CB93CB0DD648B736A4E76D95 /* Pods_NestedPageExample.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3EDDD491DBB5D78459C97CAA /* Pods_NestedPageExample.framework */; };
 /* End PBXBuildFile section */
 
@@ -101,7 +100,6 @@
 		BBE154B12E6C1837003815C5 /* PreloadViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreloadViewController.swift; sourceTree = "<group>"; };
 		BBE154B32E6C1D43003815C5 /* BuiltInTabStripViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuiltInTabStripViewController.swift; sourceTree = "<group>"; };
 		BBE154B52E6C5E65003815C5 /* FixedHeaderViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FixedHeaderViewController.swift; sourceTree = "<group>"; };
-		C02800010000000000000002 /* ShortContentViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortContentViewController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -178,7 +176,6 @@
 				BB9AADA12E8505C200D202CC /* NoHeaderViewController.swift */,
 				BB9AADA52E85A9B800D202CC /* PinnedCollectionHeaderViewController.swift */,
 				BB9AADA72E8627ED00D202CC /* ChangeHeaderHeightViewController.swift */,
-				C02800010000000000000002 /* ShortContentViewController.swift */,
 				BB553D7A2E63732B00798037 /* ProfileCoverView.swift */,
 				BB9AADA92E86301700D202CC /* CustomCoverView.swift */,
 			);
@@ -358,7 +355,6 @@
 				BB553D952E63732B00798037 /* LikesViewController.swift in Sources */,
 				BB553D962E63732B00798037 /* MyCollectionView.swift in Sources */,
 				BB9AADA82E8627ED00D202CC /* ChangeHeaderHeightViewController.swift in Sources */,
-				C02800010000000000000001 /* ShortContentViewController.swift in Sources */,
 				BB553D972E63732B00798037 /* MyTableView.swift in Sources */,
 				BB553D982E63732B00798037 /* PostsViewController.swift in Sources */,
 				BB46026E2E68627C009B6A11 /* ScrollsToTopViewController.swift in Sources */,

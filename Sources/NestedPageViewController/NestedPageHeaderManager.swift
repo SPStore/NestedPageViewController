@@ -8,7 +8,7 @@
 
 import UIKit
 
-/// 嵌套页面头部管理器，负责管理头部视图的创建、布局和状态管理
+/// 嵌套页面头部管理器，负责头部视图的创建、布局和挂载。
 class NestedPageHeaderManager {
         
     weak var viewController: NestedPageViewController?
@@ -23,12 +23,6 @@ class NestedPageHeaderManager {
     
     // 这个视图起到至关重要的作用（它是可不见的），不仅控制其余scrollView的偏移量，同时也更方便控制headerContentView的位置
     var pin: UIView = UIView()
-    // pin视图的Y坐标
-    var previousPinY: CGFloat = 0
-    // pin视图的溢出高度
-    var overflowPinHeight: CGFloat = 0
-    // 是否保持吸顶（当子列表未滑动到吸顶状态就切换tab，再切回来，需要维持当前的"半吸顶"状态）
-    var keepsStick: Bool = false
     
     lazy var fixedContainer: UIView = {
         // 这里借助NestedPageHeaderView，通过allowsSubviewHitTestOnly实现仅子视图交互，屏蔽自身交互
@@ -109,7 +103,7 @@ class NestedPageHeaderManager {
         pageHeaderHeight = coverHeight + tabHeight
         viewController.stickyOffset = max(0, min(coverHeight, viewController.stickyOffset))
     }
-    
+
     // MARK: - Layout
     
     func layoutPageHeader() {
@@ -134,7 +128,6 @@ class NestedPageHeaderManager {
         fixedContainer.layer.mask = fixedContainerLayer
         // 由于contentScrollView在自己的控制器中的左上角未必是(0,0)，因为有安全区域，pin的顶部必须和contentScrollView顶部对齐
         pin.frame = CGRect(x: 0, y: contentScrollViewY, width: viewController.containerView.bounds.width, height: pageHeaderHeight)
-        overflowPinHeight = 0
     }
     
     func layoutHeaderViews() {

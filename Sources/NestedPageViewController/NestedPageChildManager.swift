@@ -84,8 +84,8 @@ class NestedPageChildManager {
             // 外部可能想要设置自己的inset.bottom，如果外部设置的inset.bottom比安全区域还大，就保持外部设置的
             scrollCoordinator.updateContentInsets(for: contentScrollView)
             
-            let currentContentInitializeContentOffsetY = -contentScrollView.contentInset.top + min(-headerManager.previousPinY + contentScrollView.frame.minY, headerManager.coverHeight - viewController.stickyOffset)
-            contentScrollView.setContentOffset(CGPoint(x: 0, y: currentContentInitializeContentOffsetY), animated: false)
+            let initialOffsetY = scrollCoordinator.initialContentOffsetY(for: contentScrollView)
+            contentScrollView.setContentOffset(CGPoint(x: 0, y: initialOffsetY), animated: false)
             return true
         }
         return false

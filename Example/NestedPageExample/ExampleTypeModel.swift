@@ -72,7 +72,6 @@ class ExampleTypeModel {
         let preloadVC = ExampleTypeModel.model(title: "预加载子视图控制器，默认选中第2个", targetClass: PreloadViewController.self)
         preloadVC.detailTitle = "无需等待页面切换结束才加载内容，减少了空白页面的等待时长"
         let changeHeaderHeightVC = ExampleTypeModel.model(title: "运行时修改头部高度", targetClass: ChangeHeaderHeightViewController.self)
-        let shortContentVC = ExampleTypeModel.model(title: "短内容与反复切页回归", targetClass: ShortContentViewController.self)
         let noHeaderVc = ExampleTypeModel.model(title: "没有头部", targetClass: NoHeaderViewController.self)
         // 标签栏示例组
         let builtInTabStripVC = ExampleTypeModel.model(title: "简单定制内置tab栏", targetClass: BuiltInTabStripViewController.self)
@@ -95,7 +94,6 @@ class ExampleTypeModel {
             includeTabBarVC,
             pinnedCollectionHeaderVC,
             changeHeaderHeightVC,
-            shortContentVC,
             preloadVC,
             noHeaderVc,
         ])

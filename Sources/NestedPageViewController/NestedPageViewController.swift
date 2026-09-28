@@ -387,9 +387,7 @@ open class NestedPageViewController: UIViewController {
         headerManager.layoutHeaderViews()
         
         // 重置内部状态变量
-        headerManager.previousPinY = headerManager.pin.frame.minY
-        headerManager.keepsStick = false
-        scrollCoordinator.reset()
+        scrollCoordinator.resetAfterLayout(pinY: headerManager.pin.frame.minY)
                 
         guard let dataSource = dataSource else { return }
         

@@ -16,7 +16,12 @@ class NestedPageScrollCoordinator {
     weak var headerManager: NestedPageHeaderManager?
     weak var childManager: NestedPageChildManager?
     
-    var isSticked: Bool = false
+    private(set) var isSticked: Bool = false
+
+    // 这些值描述滚动历史，不属于头部视图的布局状态；仅由协调器修改。
+    private var previousPinY: CGFloat = 0
+    private var overflowPinHeight: CGFloat = 0
+    private var keepsStick = false
         
     private var isHorizontalScrolling: Bool = false
     
@@ -37,9 +42,19 @@ class NestedPageScrollCoordinator {
         self.childManager = childManager
     }
     
-    func reset() {
+    func resetAfterLayout(pinY: CGFloat) {
+        previousPinY = pinY
+        overflowPinHeight = 0
+        keepsStick = false
         lastContentOffsetY = 0
         lastContentScrollView = nil
+        // 保持原有回报与动画时机，不在这里重算 isSticked 或终止在途横向/异步操作。
+    }
+
+    func initialContentOffsetY(for scrollView: UIScrollView) -> CGFloat {
+        guard let viewController, let headerManager else { return -scrollView.contentInset.top }
+        let pinOffsetY = -previousPinY + scrollView.frame.minY
+        return -scrollView.contentInset.top + min(pinOffsetY, headerManager.coverHeight - viewController.stickyOffset)
     }
     
     // MARK: - Vertical Scrolling Management
@@ -63,14 +78,14 @@ class NestedPageScrollCoordinator {
         }
         
         // 更新紧贴状态
-        if supplementaryOffsetY <= headerManager.overflowPinHeight  {
-            headerManager.keepsStick = false
+        if supplementaryOffsetY <= overflowPinHeight {
+            keepsStick = false
         }
         
         // 计算吸顶状态并通知代理
         let shouldFullStick = currentOffsetY >= -headerManager.tabHeight - viewController.stickyOffset
 
-        if headerManager.keepsStick == true {
+        if keepsStick {
             // 半吸顶状态
             handlePartialStickScrolling(scrollView: scrollView, currentOffsetY: currentOffsetY)
         } else if shouldFullStick {
@@ -84,6 +99,7 @@ class NestedPageScrollCoordinator {
         // 同步其他滚动视图并更新状态
         syncScrollOtherContentScrollView()
         
+        // 保留既有公开状态语义，不等同于带 stickyOffset 的视觉吸顶边界。
         isSticked = headerManager.pin.frame.minY <= -headerManager.coverHeight
         let sy = childManager.currentContentScrollView?.convert(childManager.currentContentScrollView?.bounds ?? .zero, to: viewController.containerView).minY ?? 0.0
         let cy = headerManager.headerContentView.convert(headerManager.headerContentView.bounds, to: viewController.containerView).minY
@@ -115,7 +131,7 @@ class NestedPageScrollCoordinator {
                 handleFullStickScrolling(currentOffsetY: currentOffsetY)
             }
             // 注意一定要更新overflowPinHeight，否则下拉时pageHeader会一直吸顶，跟scrollView"脱钩"
-            headerManager.overflowPinHeight = -(headerManager.pin.frame.minY - contentScrollViewY)
+            overflowPinHeight = -(headerManager.pin.frame.minY - contentScrollViewY)
             headerManager.movePageHeaderToPageHeaderByPin(currentIndex: childManager.currentIndex)
         } else {
             // 向下滑动
@@ -169,15 +185,10 @@ class NestedPageScrollCoordinator {
               let headerManager = headerManager else { return }
         
         let contentScrollViewY = viewController.contentScrollViewY
-        
-        // 更新pin位置
-        if currentOffsetY <= -headerManager.pageHeaderHeight {
-            // pin视图不跟随scrollView继续下拉回弹，这么设计的目的是可以控制其余scrollView
-            // 在当前scrollView的bouncing过程中，不发生偏移，这样切换tab不会出现其余scrollView还存在"悬挂"现象
-            headerManager.adjustPinY(contentScrollViewY)
-        } else {
-            headerManager.adjustPinY(-supplementaryOffsetY + contentScrollViewY)
-        }
+        // pin 不跟随下拉回弹，避免其余分页同步进入回弹位置。
+        let pinY = currentOffsetY <= -headerManager.pageHeaderHeight
+            ? contentScrollViewY : -supplementaryOffsetY + contentScrollViewY
+        headerManager.adjustPinY(pinY)
                 
         // 更新头部视图位置
         guard let pageHeader = headerManager.pageHeader(at: childManager?.currentIndex ?? 0) else { return }
@@ -237,8 +248,8 @@ class NestedPageScrollCoordinator {
               let childManager = childManager else { return }
         
         let currentPinY = headerManager.pin.frame.minY
-        let deltaY = currentPinY - headerManager.previousPinY
-        headerManager.previousPinY = currentPinY
+        let deltaY = currentPinY - previousPinY
+        previousPinY = currentPinY
                         
         for childViewController in childManager.viewControllerMap.values {
             let contentScrollView = childViewController.nestedPageContentScrollView
@@ -248,13 +259,11 @@ class NestedPageScrollCoordinator {
             
             var newOffset = contentScrollView.contentOffset
             newOffset.y -= deltaY
-                      
-            // 非吸顶状态时，如果keepsContentScrollPosition为false，其余scrollView偏移量全部恢复到初始值
-            // abs(deltaY) > CGFloat.ulpOfOne（deltaY != 0）说明pin的y值发生了变化，发生变化就说明一定是非吸顶状态
+            // pin 移动说明未完全吸顶；关闭位置保留时，让其他分页与头部对齐。
             if !viewController.keepsContentScrollPosition && abs(deltaY) > CGFloat.ulpOfOne {
                 newOffset.y = -(currentPinY + headerManager.pageHeaderHeight)
             }
-            // 校准操作，防止旋转过程中或者其他异常，导致偏移量过大且无法回弹。正常情况下不会进入这个if语句。
+            // 校准上边界，避免旋转或异常偏移后无法回弹。
             if newOffset.y < -headerManager.pageHeaderHeight {
                 newOffset.y = -headerManager.pageHeaderHeight
             }
@@ -411,14 +420,10 @@ class NestedPageScrollCoordinator {
             
             // 超出内容scrollView的距离，所以需要减去scrollView的y值(contentScrollView顶部可能有安全区域)
             let contentScrollViewY = viewController.contentScrollViewY
-            headerManager.overflowPinHeight = -(headerManager.pin.frame.minY - contentScrollViewY)
+            overflowPinHeight = -(headerManager.pin.frame.minY - contentScrollViewY)
             // 记录一下是否保持吸顶状态
-            let overflowOffsetY = (viewController.currentContentScrollView?.contentOffset.y ?? 0) + headerManager.pageHeaderHeight + viewController.stickyOffset
-            if overflowOffsetY > headerManager.overflowPinHeight {
-                headerManager.keepsStick = true
-            } else {
-                headerManager.keepsStick = false
-            }
+            let offsetY = viewController.currentContentScrollView?.contentOffset.y ?? 0
+            keepsStick = offsetY + headerManager.pageHeaderHeight + viewController.stickyOffset > overflowPinHeight
         }
         
         moveHeaderContentViewToPageHeader(at: index)
@@ -518,7 +523,7 @@ class NestedPageScrollCoordinator {
             scrollView.setContentOffset(CGPoint(x: scrollView.contentOffset.x, y: reachableOffset), animated: false)
         }
         if needsHeaderExpansion {
-            headerManager.keepsStick = false
+            keepsStick = false
         }
         contentScrollViewDidScroll(scrollView)
     }
