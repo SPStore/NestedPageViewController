@@ -1,6 +1,6 @@
 {
   "name": "NestedPageViewController",
-  "version": "2.0.3",
+  "version": "2.1.0",
   "summary": "A nested page view controller for iOS with smooth scrolling coordination",
   "description": "NestedPageViewController provides a smooth nested scrolling experience\nwith header view, tab strip, and multiple child view controllers.\nIt coordinated scrolling between the header and child scroll views.",
   "homepage": "https://github.com/SPStore/NestedPageViewController",
@@ -13,7 +13,7 @@
   },
   "source": {
     "git": "https://github.com/SPStore/NestedPageViewController.git",
-    "tag": "2.0.3"
+    "tag": "2.1.0"
   },
   "platforms": {
     "ios": "13.0"

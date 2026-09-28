@@ -9,7 +9,7 @@
   <a href="https://swift.org/"><img src="https://img.shields.io/badge/Swift-5.0-orange.svg"></a>
   <a href="https://developer.apple.com/ios/"><img src="https://img.shields.io/badge/iOS-13.0%2B-blue.svg"></a>
   <a href="https://github.com/SPStore/NestedPageViewController/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg"></a>
-  <a href="https://cocoapods.org/pods/NestedPageViewController"><img src="https://img.shields.io/badge/pod-v2.0.3-brightgreen.svg"></a>
+  <a href="https://cocoapods.org/pods/NestedPageViewController"><img src="https://img.shields.io/badge/pod-v2.1.0-brightgreen.svg"></a>
   <a href="https://swift.org/package-manager/"><img src="https://img.shields.io/badge/SPM-compatible-brightgreen.svg"></a>
 </p>
 
@@ -381,7 +381,7 @@ nestedPageViewController.setContentBottomInset(businessInset + 20, for: collecti
 
 直接赋予不同的 `contentInset.bottom` 仍会被识别为新的业务值；但不要基于 `contentInset.bottom` 的合成值进行增减或保存后恢复。第三方底部刷新控件如自行增减该值，也需要协调其 inset 所有权（或关闭自动补足，接受短列表不能保持吸顶）。仅调整 top 的下拉刷新不影响已保存的业务 bottom inset。
 
-Example 的“短内容与反复切页回归”包含三种原生列表，可验证“选择 → 取消 → 反复切页”、吸顶切页、短/长/空数据、底部 inset 和旋转。点击封面文字可切换自动补足开关，检查关闭后的短列表回退行为。
+短内容、反复切页和头部高度变化的回归覆盖位于 `Tests/NestedPageViewControllerTests`，包含原生 UITableView、Flow Layout 和 Compositional Layout。
 
 ## 性能报告
 
