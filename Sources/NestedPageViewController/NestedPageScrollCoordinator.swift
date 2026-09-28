@@ -25,7 +25,9 @@ class NestedPageScrollCoordinator {
     
     private var isWaitingForAnimationEnd: Bool = false
     
-    private var cancellables = Set<AnyCancellable>()
+    private var offsetObservations: [ObjectIdentifier: AnyCancellable] = [:]
+    private var scrollRanges: [ObjectIdentifier: NestedPageScrollRange] = [:]
+    private var isReconcilingScrollRange = false
         
     // MARK: - Initialization
     
@@ -421,8 +423,6 @@ class NestedPageScrollCoordinator {
         
         moveHeaderContentViewToPageHeader(at: index)
         
-        viewController.delegate?.pageViewController(viewController, didScrollToPageAt: index)
-        
         // 校准偏移量
         if let lastContentScrollView = lastContentScrollView, lastContentScrollView.isTopBouncing {
             lastContentScrollView.setContentOffset(CGPoint(x: lastContentScrollView.contentOffset.x, y: -(headerManager.pageHeaderHeight)), animated: false)
@@ -432,6 +432,8 @@ class NestedPageScrollCoordinator {
         isHorizontalScrolling = false
         
         headerManager.removeShimView()
+        reconcileUnpaddedCurrentPage()
+        viewController.delegate?.pageViewController(viewController, didScrollToPageAt: index)
     }
     
     private func moveHeaderContentViewToPageHeader(at index: Int) {
@@ -451,40 +453,95 @@ class NestedPageScrollCoordinator {
         guard let scrollView = scrollView,
               let _ = viewController,
               let _ = headerManager else { return }
+
+        let identifier = ObjectIdentifier(scrollView)
+        guard scrollRanges[identifier] == nil else { return }
+        let range = NestedPageScrollRange(scrollView: scrollView, pinnedHeight: minimumPinnedHeight)
+        scrollRanges[identifier] = range
+        range.onRangeChange = { [weak self, weak scrollView] in
+            guard let self = self, let scrollView = scrollView,
+                  scrollView === self.viewController?.currentContentScrollView else { return }
+            self.reconcileUnpaddedCurrentPage()
+        }
         
         // 观察contentOffset变化
-        scrollView.publisher(for: \.contentOffset)
+        offsetObservations[identifier] = scrollView.publisher(for: \.contentOffset)
             .sink { [weak self, weak scrollView] _ in
                 guard let self = self,
+                      !self.isReconcilingScrollRange,
                         let scrollView = scrollView,
                       let headerManager = self.headerManager, scrollView.contentInset.top == headerManager.pageHeaderHeight else { return }
                 self.contentScrollViewDidScroll(scrollView)
             }
-            .store(in: &cancellables)
-        
-        // 观察contentSize变化
-        scrollView.publisher(for: \.contentSize)
-            .sink { [weak self, weak scrollView] newSize in
-                guard let self = self, let scrollView = scrollView,
-                      let viewController = self.viewController,
-                      let headerManager = self.headerManager,
-                      viewController.autoAdjustsContentSizeMinimumHeight else { return }
-                         
-                guard !scrollView.isDragging && !scrollView.isDecelerating else { return }
-
-                let contentScrollViewY = viewController.contentScrollViewY
-                let minContentSizeHeight = viewController.containerView.bounds.height - headerManager.tabHeight - contentScrollViewY - scrollView.contentInset.bottom - viewController.stickyOffset
-                if minContentSizeHeight > newSize.height {
-                    scrollView.contentSize.height = minContentSizeHeight
-                }
-                    
-            }
-            .store(in: &cancellables)
     }
-    
-    // MARK: - Cleanup
-    
-    deinit {
-        cancellables.removeAll()
+
+    private var minimumPinnedHeight: CGFloat? {
+        guard let viewController = viewController, let headerManager = headerManager,
+              viewController.autoAdjustsContentSizeMinimumHeight else { return nil }
+        return headerManager.tabHeight + viewController.stickyOffset
+    }
+
+    func updateScrollRanges() {
+        for range in scrollRanges.values {
+            range.update(pinnedHeight: minimumPinnedHeight)
+        }
+        reconcileUnpaddedCurrentPage()
+    }
+
+    /// 关闭补足时，短列表未必能承接共享 header 的折叠位置；以当前页的真实滚动范围为准。
+    private func reconcileUnpaddedCurrentPage() {
+        guard let viewController = viewController, let headerManager = headerManager,
+              !viewController.autoAdjustsContentSizeMinimumHeight,
+              !viewController.headerAlwaysFixed, !viewController.isRotating,
+              !isReconcilingScrollRange,
+              let scrollView = viewController.currentContentScrollView,
+              shouldHandleCurrentScrollEvent(with: scrollView),
+              scrollView.bounds.height > 0,
+              scrollView.contentInset.top == headerManager.pageHeaderHeight,
+              !scrollView.isTracking, !scrollView.isDragging, !scrollView.isDecelerating,
+              scrollView.contentOffset.y >= -headerManager.pageHeaderHeight else { return }
+        if #available(iOS 17.4, *), scrollView.isScrollAnimating { return }
+
+        let maximumOffset = max(
+            -scrollView.adjustedContentInset.top,
+            scrollView.contentSize.height - scrollView.bounds.height + scrollView.adjustedContentInset.bottom
+        )
+        let reachableOffset = min(scrollView.contentOffset.y, maximumOffset)
+        let headerOffset = viewController.contentScrollViewY - headerManager.pin.frame.minY
+        let needsHeaderExpansion = reachableOffset + headerManager.pageHeaderHeight < headerOffset - 0.001
+        guard reachableOffset < scrollView.contentOffset.y || needsHeaderExpansion else { return }
+
+        isReconcilingScrollRange = true
+        defer { isReconcilingScrollRange = false }
+        // 一次性协调 offset 和 header，避免 KVO 在两者更新之间触发页面联动。
+        if reachableOffset < scrollView.contentOffset.y {
+            scrollView.setContentOffset(CGPoint(x: scrollView.contentOffset.x, y: reachableOffset), animated: false)
+        }
+        if needsHeaderExpansion {
+            headerManager.keepsStick = false
+        }
+        contentScrollViewDidScroll(scrollView)
+    }
+
+    func updateContentInsets(for scrollView: UIScrollView) {
+        scrollRanges[ObjectIdentifier(scrollView)]?.updateHeaderInsets(top: headerManager?.pageHeaderHeight ?? 0)
+    }
+
+    func requestedBottomInset(for scrollView: UIScrollView) -> CGFloat {
+        scrollRanges[ObjectIdentifier(scrollView)]?.requestedBottomInset ?? scrollView.contentInset.bottom
+    }
+
+    func setRequestedBottomInset(_ inset: CGFloat, for scrollView: UIScrollView) {
+        if let range = scrollRanges[ObjectIdentifier(scrollView)] {
+            range.setRequestedBottomInset(inset)
+        } else {
+            scrollView.contentInset.bottom = inset
+        }
+    }
+
+    func stopObserving(_ scrollView: UIScrollView) {
+        let identifier = ObjectIdentifier(scrollView)
+        offsetObservations.removeValue(forKey: identifier)
+        scrollRanges.removeValue(forKey: identifier)?.invalidate()
     }
 }

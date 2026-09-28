@@ -349,6 +349,26 @@ NestedPageViewController原本是用OC编写，考虑到swift是主流，于是�
 
 示例工程中提供了完整的 Objective-C 桥接示例，可以参考 `Example/NestedPageExample/Examples-OC` 目录下的实现。
 
+### 短内容的自动滚动范围
+
+`autoAdjustsContentSizeMinimumHeight` 默认是 `true`。短列表、空列表也会获得足够的滚动范围，使标签栏可以吸顶并在切页时保持位置。适用于原生 `UITableView`、Flow Layout、Compositional Layout，不要求自定义列表或 layout。
+
+属性名称为兼容旧版保留。实现使用组件管理的 `contentInset.bottom` 补足空间，不再通过 KVO 回写 `contentSize`；列表的真实 `contentSize` 仍由其布局决定。数据、视口尺寸、头部高度变化时重新计算，长列表不额外补足；关闭该属性或移除子页面时移除自动补足量。滚动条不包含这部分空白补足量。
+
+设为 `false` 时不会补足短内容。切到短列表或内容缩短后，如果原来的折叠位置超出该页的实际滚动范围，组件会同步回退列表位置并展开 header，避免头部留白；因此不保证短列表仍能保持吸顶。能够承接原位置的长列表不受影响。
+
+如果业务需要动态设置底部工具栏、键盘等 inset，推荐通过以下接口设置业务值，避免读到包含自动补足量的合成值：
+
+```swift
+nestedPageViewController.setContentBottomInset(90, for: collectionView)
+let businessInset = nestedPageViewController.contentBottomInset(for: collectionView)
+nestedPageViewController.setContentBottomInset(businessInset + 20, for: collectionView)
+```
+
+直接赋予不同的 `contentInset.bottom` 仍会被识别为新的业务值；但不要基于 `contentInset.bottom` 的合成值进行增减或保存后恢复。第三方底部刷新控件如自行增减该值，也需要协调其 inset 所有权（或关闭自动补足，接受短列表不能保持吸顶）。仅调整 top 的下拉刷新不影响已保存的业务 bottom inset。
+
+Example 的“短内容与反复切页回归”包含三种原生列表，可验证“选择 → 取消 → 反复切页”、吸顶切页、短/长/空数据、底部 inset 和旋转。点击封面文字可切换自动补足开关，检查关闭后的短列表回退行为。
+
 ## 性能报告
 
 NestedPageViewController在性能方面进行了多项优化，确保在复杂的嵌套滚动场景下仍能保持流畅的用户体验。以下是demo中4个子控制下的性能评测：

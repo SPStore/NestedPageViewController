@@ -2,7 +2,7 @@ PODS:
   - FDFullscreenPopGesture (1.1)
   - JXCategoryView (1.6.8)
   - MJRefresh (3.7.9)
-  - NestedPageViewController (1.0.0)
+  - NestedPageViewController (2.0.3)
 
 DEPENDENCIES:
   - FDFullscreenPopGesture (= 1.1)
@@ -24,8 +24,8 @@ SPEC CHECKSUMS:
   FDFullscreenPopGesture: a8a620179e3d9c40e8e00256dcee1c1a27c6d0f0
   JXCategoryView: 262d503acea0b1278c79a1c25b7332ffaef4d518
   MJRefresh: ff9e531227924c84ce459338414550a05d2aea78
-  NestedPageViewController: 83b60fda66420f80ed4d5d68c17c8660749423f5
+  NestedPageViewController: c2f845328be584732ba009f2cf6d557034d2d8ae
 
-PODFILE CHECKSUM: f4cf550e4117711502f46ea85afcb9135a3e2d20
+PODFILE CHECKSUM: d6d59c1371d080fee6686ac35d705e597772e590
 
 COCOAPODS: 1.16.2

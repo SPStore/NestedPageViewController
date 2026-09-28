@@ -82,8 +82,7 @@ class NestedPageChildManager {
             childViewController.view.layoutIfNeeded()
             
             // 外部可能想要设置自己的inset.bottom，如果外部设置的inset.bottom比安全区域还大，就保持外部设置的
-            contentScrollView.contentInset = UIEdgeInsets(top: headerManager.pageHeaderHeight, left: 0, bottom: max(contentScrollView.safeAreaInsets.bottom, contentScrollView.contentInset.bottom), right: 0)
-            contentScrollView.scrollIndicatorInsets = contentScrollView.contentInset
+            scrollCoordinator.updateContentInsets(for: contentScrollView)
             
             let currentContentInitializeContentOffsetY = -contentScrollView.contentInset.top + min(-headerManager.previousPinY + contentScrollView.frame.minY, headerManager.coverHeight - viewController.stickyOffset)
             contentScrollView.setContentOffset(CGPoint(x: 0, y: currentContentInitializeContentOffsetY), animated: false)
@@ -169,8 +168,7 @@ class NestedPageChildManager {
             
             let contentScrollView = childViewController.nestedPageContentScrollView
             // 更新contentInset
-            contentScrollView.contentInset = UIEdgeInsets(top: headerManager.pageHeaderHeight, left: 0, bottom: max(contentScrollView.safeAreaInsets.bottom, contentScrollView.contentInset.bottom), right: 0)
-            contentScrollView.scrollIndicatorInsets = contentScrollView.contentInset
+            scrollCoordinator?.updateContentInsets(for: contentScrollView)
             
             // 重置contentOffset到初始位置（顶部）
             contentScrollView.setContentOffset(CGPoint(x: 0, y: -headerManager.pageHeaderHeight), animated: false)
@@ -214,6 +212,9 @@ class NestedPageChildManager {
     }
     
     func removeChildViewController(_ child: UIViewController) {
+        if let child = child as? NestedPageScrollable {
+            scrollCoordinator?.stopObserving(child.nestedPageContentScrollView)
+        }
         child.willMove(toParent: nil)
         child.view.removeFromSuperview()
         child.removeFromParent()

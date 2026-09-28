@@ -28,6 +28,10 @@ let package = Package(
             resources: [
                 .process("../PrivacyInfo.xcprivacy")
             ]),
+        .testTarget(
+            name: "NestedPageViewControllerTests",
+            dependencies: ["NestedPageViewController"],
+            path: "Tests/NestedPageViewControllerTests")
     ],
     swiftLanguageVersions: [.v5]
 )

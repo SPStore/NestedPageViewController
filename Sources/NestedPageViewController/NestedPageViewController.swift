@@ -22,7 +22,6 @@ import Combine
     ///   - 内部会自动设置以下偏移相关属性：
     ///     - `contentInset`
     ///     - `contentOffset`
-    ///     - `contentSize`（当 `autoAdjustsContentSizeMinimumHeight = true` 时）
     ///     - `contentInsetAdjustmentBehavior`
     /// - 外部修改这些属性时，请注意避免与内部的自动设置产生冲突
     var nestedPageContentScrollView: UIScrollView { get }
@@ -153,10 +152,13 @@ open class NestedPageViewController: UIViewController {
         }
     }
     
-    /// 是否自动调整nestedPageContentScrollView的最小contentSize.height
-    /// 当为true时，会确保内容视图的高度至少等于可见区域高度，防止内容过少时无法滚动到顶部
-    /// 当为false时，内容视图的高度由其内容或者外部手动设置的决定，不进行额外调整
-    open var autoAdjustsContentSizeMinimumHeight: Bool = true
+    /// 是否自动补足短内容到达吸顶位置所需的滚动范围，默认 true。
+    /// 保留原属性名；通过独立管理的 bottom inset 补足，不再改写列表布局生成的 contentSize。
+    /// 为 false 时移除自动补足量，保留业务 bottom inset 和安全区。
+    /// 短列表无法承接吸顶位置时会展开 header，与列表的实际位置保持一致。
+    open var autoAdjustsContentSizeMinimumHeight: Bool = true {
+        didSet { scrollCoordinator.updateScrollRanges() }
+    }
     
     /// 默认显示的页面索引，默认为0（即第一个页面）
     open var defaultPageIndex: Int = 0
@@ -249,6 +251,7 @@ open class NestedPageViewController: UIViewController {
         if childManager.viewControllerMap.isEmpty {
             rebuild()
         }
+        scrollCoordinator.updateScrollRanges()
     }
     
     open override func didMove(toParent parent: UIViewController?) {
@@ -274,11 +277,22 @@ open class NestedPageViewController: UIViewController {
         super.viewSafeAreaInsetsDidChange()
         for (_, childViewController) in childManager.viewControllerMap {
             let contentScrollView = childViewController.nestedPageContentScrollView
-            contentScrollView.contentInset = UIEdgeInsets(top: headerManager.pageHeaderHeight, left: 0, bottom: max(contentScrollView.safeAreaInsets.bottom, contentScrollView.contentInset.bottom), right: 0)
+            scrollCoordinator.updateContentInsets(for: contentScrollView)
         }
     }
     
     // MARK: - Public Methods
+
+    /// 获取业务设置的 bottom inset，不包含安全区下限或短内容自动补足量。
+    /// 需要对业务 inset 做增减时，使用此值，而不是读取 scrollView.contentInset.bottom 的合成值。
+    public func contentBottomInset(for scrollView: UIScrollView) -> CGFloat {
+        return scrollCoordinator.requestedBottomInset(for: scrollView)
+    }
+
+    /// 设置业务 bottom inset。重复设置相同值也有效，不会把自动补足量累计到业务 inset。
+    public func setContentBottomInset(_ inset: CGFloat, for scrollView: UIScrollView) {
+        scrollCoordinator.setRequestedBottomInset(inset, for: scrollView)
+    }
     
     /// 横向滚动到指定索引的页面
     /// - Parameters:
@@ -358,6 +372,8 @@ open class NestedPageViewController: UIViewController {
 
         // 获取数据源信息
         headerManager.fetchHeaderHeights()
+
+        scrollCoordinator.updateScrollRanges()
 
         headerManager.updateHeaderContentViewFrame()
 
