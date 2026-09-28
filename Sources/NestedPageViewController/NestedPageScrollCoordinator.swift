@@ -482,6 +482,7 @@ class NestedPageScrollCoordinator {
             
             if let childViewController = childManager.viewController(at: index) {
                 childManager.currentContentScrollView = childViewController.nestedPageContentScrollView
+                alignContentWithSharedHeader(childViewController.nestedPageContentScrollView)
             }
             
             // 超出内容scrollView的距离，所以需要减去scrollView的y值(contentScrollView顶部可能有安全区域)
@@ -530,9 +531,12 @@ class NestedPageScrollCoordinator {
         let range = NestedPageScrollRange(scrollView: scrollView, pinnedHeight: minimumPinnedHeight)
         scrollRanges[identifier] = range
         range.onRangeChange = { [weak self, weak scrollView] in
-            guard let self = self, let scrollView = scrollView,
-                  scrollView === self.viewController?.currentContentScrollView else { return }
-            self.reconcileUnpaddedCurrentPage()
+            guard let self = self, let scrollView = scrollView else { return }
+            if scrollView === self.viewController?.currentContentScrollView {
+                self.reconcileUnpaddedCurrentPage()
+            } else if !self.isHorizontalScrolling {
+                self.alignContentWithSharedHeader(scrollView)
+            }
         }
         
         // 观察contentOffset变化
@@ -557,6 +561,29 @@ class NestedPageScrollCoordinator {
             range.update(pinnedHeight: minimumPinnedHeight)
         }
         reconcileUnpaddedCurrentPage()
+    }
+
+    /// 非当前页重新估算高度时，UIKit 可能先收敛 offset、后通知范围变化；补足范围不会自动恢复 offset。
+    private func alignContentWithSharedHeader(_ scrollView: UIScrollView) {
+        guard let viewController, let headerManager,
+              !viewController.isUpdatingLayouts, !viewController.isRotating, !isReconcilingScrollRange,
+              scrollView.bounds.height > 0,
+              scrollView.contentInset.top == headerManager.pageHeaderHeight,
+              !scrollView.isTracking, !scrollView.isDragging, !scrollView.isDecelerating,
+              scrollView.contentOffset.y >= -headerManager.pageHeaderHeight else { return }
+        if #available(iOS 17.4, *), scrollView.isScrollAnimating { return }
+
+        let minimum = -scrollView.adjustedContentInset.top
+        let maximum = max(
+            minimum, scrollView.contentSize.height - scrollView.bounds.height + scrollView.adjustedContentInset.bottom
+        )
+        let headerBottom = headerManager.pin.convert(headerManager.pin.bounds, to: scrollView).maxY
+        let alignedOffset = min(maximum, max(minimum, scrollView.bounds.minY - headerBottom))
+        // 只消除首项与共享头部之间的空隙，不覆盖更深的阅读位置；不补足时仍尊重真实滚动范围。
+        guard scrollView.contentOffset.y < alignedOffset - 0.001 else { return }
+        isReconcilingScrollRange = true
+        defer { isReconcilingScrollRange = false }
+        scrollView.setContentOffset(CGPoint(x: scrollView.contentOffset.x, y: alignedOffset), animated: false)
     }
 
     /// 关闭补足时，短列表未必能承接共享 header 的折叠位置；以当前页的真实滚动范围为准。

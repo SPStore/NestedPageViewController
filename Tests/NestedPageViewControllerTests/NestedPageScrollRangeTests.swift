@@ -383,7 +383,7 @@ private final class SafeAreaScrollView: UIScrollView {
     }
 }
 
-private final class TestPages: NestedPageViewControllerDataSource {
+final class TestPages: NestedPageViewControllerDataSource {
     let pages: [TestPage]
     var showsHeader = true
     var coverHeight: CGFloat = 204
@@ -407,18 +407,24 @@ private final class TestPages: NestedPageViewControllerDataSource {
     func heightForTabStrip(in pageViewController: NestedPageViewController) -> CGFloat { return showsHeader ? 44 : 0 }
 }
 
-private final class TestPage: UIViewController, NestedPageScrollable, UICollectionViewDataSource, UITableViewDataSource {
-    enum Kind { case flow, compositional, fractionalCompositional, table }
+final class TestPage: UIViewController, NestedPageScrollable, UICollectionViewDataSource, UITableViewDataSource {
+    enum Kind { case flow, compositional, fractionalCompositional, list, table }
     let nestedPageContentScrollView: UIScrollView
+    private let kind: Kind
     var itemCount = 3
 
     init(kind: Kind) {
+        self.kind = kind
         switch kind {
         case .table:
             nestedPageContentScrollView = UITableView(frame: .zero, style: .plain)
-        case .flow, .compositional, .fractionalCompositional:
+        case .flow, .compositional, .fractionalCompositional, .list:
             let layout: UICollectionViewLayout
-            if kind == .flow {
+            if kind == .list, #available(iOS 14.0, *) {
+                var configuration = UICollectionLayoutListConfiguration(appearance: .plain)
+                configuration.showsSeparators = false
+                layout = UICollectionViewCompositionalLayout.list(using: configuration)
+            } else if kind == .flow {
                 let flow = UICollectionViewFlowLayout()
                 flow.itemSize = CGSize(width: 300, height: 56)
                 flow.minimumLineSpacing = 0
@@ -443,7 +449,8 @@ private final class TestPage: UIViewController, NestedPageScrollable, UICollecti
         nestedPageContentScrollView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         view.addSubview(nestedPageContentScrollView)
         if let collectionView = nestedPageContentScrollView as? UICollectionView {
-            collectionView.register(UICollectionViewCell.self, forCellWithReuseIdentifier: "cell")
+            let cellClass = kind == .list ? ResizingTestCell.self : UICollectionViewCell.self
+            collectionView.register(cellClass, forCellWithReuseIdentifier: "cell")
             collectionView.dataSource = self
         } else if let tableView = nestedPageContentScrollView as? UITableView {
             tableView.rowHeight = 56
@@ -466,5 +473,14 @@ private final class TestPage: UIViewController, NestedPageScrollable, UICollecti
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int { return itemCount }
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         return tableView.dequeueReusableCell(withIdentifier: "cell", for: indexPath)
+    }
+}
+
+private final class ResizingTestCell: UICollectionViewCell {
+    override func preferredLayoutAttributesFitting(_ layoutAttributes: UICollectionViewLayoutAttributes)
+        -> UICollectionViewLayoutAttributes {
+        let attributes = super.preferredLayoutAttributesFitting(layoutAttributes)
+        attributes.size.height = 80
+        return attributes
     }
 }
