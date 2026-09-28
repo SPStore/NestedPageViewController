@@ -47,7 +47,7 @@ class NestedPageConfig: NSObject {
         return [
             NestedPageConfigItem(
                 title: "保持内容滚动位置",
-                description: "切换页面时是否保持子列表的滚动位置",
+                description: "切换页面及更新头部布局时是否保持子列表的滚动位置",
                 keyPath: "keepsContentScrollPosition",
                 type: .bool,
                 defaultValue: false

@@ -100,6 +100,18 @@ final class NestedPageScrollRangeTests: XCTestCase {
         verifyRepeatedPageSwitch(kind: .table)
     }
 
+    func testPreservingHeaderResizeWithFlowLayout() {
+        verifyPreservingHeaderResize(kind: .flow)
+    }
+
+    func testPreservingHeaderResizeWithCompositionalLayout() {
+        verifyPreservingHeaderResize(kind: .compositional)
+    }
+
+    func testPreservingHeaderResizeWithTableView() {
+        verifyPreservingHeaderResize(kind: .table)
+    }
+
     func testCompositionalLayoutFractionalHeightDoesNotCollapse() {
         let dataSource = TestPages(kind: .fractionalCompositional)
         let host = NestedPageViewController()
@@ -259,6 +271,54 @@ final class NestedPageScrollRangeTests: XCTestCase {
         }
     }
 
+    private func verifyPreservingHeaderResize(kind: TestPage.Kind) {
+        for automatic in [false, true] {
+            for count in [3, 30] {
+                let dataSource = TestPages(kind: kind)
+                dataSource.pages.forEach { $0.itemCount = count }
+                let host = makeHost(dataSource: dataSource, automatic: automatic)
+                let first = dataSource.pages[0].nestedPageContentScrollView
+                let second = dataSource.pages[1].nestedPageContentScrollView
+                let maximum = max(-first.adjustedContentInset.top, maximumOffsetY(first))
+                first.contentOffset.y = min(count == 30 ? 280 : -44, maximum)
+                if count == 30 {
+                    host.scrollToPage(at: 1, animated: false)
+                    second.contentOffset.y = 560
+                    host.scrollToPage(at: 0, animated: false)
+                }
+                let oldOffset = first.contentOffset.y
+                guard let tab = dataSource.tabStrip(in: host) else { return XCTFail("Missing tab") }
+                let index = IndexPath(item: count == 30 ? 6 : 0, section: 0)
+                func anchorY() -> CGFloat {
+                    let cellY: CGFloat
+                    if let table = first as? UITableView {
+                        cellY = table.rectForRow(at: index).minY
+                    } else if let collection = first as? UICollectionView,
+                              let attributes = collection.layoutAttributesForItem(at: index) {
+                        cellY = attributes.frame.minY
+                    } else {
+                        XCTFail("Missing cell layout")
+                        return .nan
+                    }
+                    return first.convert(CGPoint(x: 0, y: cellY), to: host.view).y -
+                        tab.convert(tab.bounds, to: host.view).maxY
+                }
+                let originalAnchor = anchorY()
+                for height: CGFloat in [304, 104, 204] {
+                    dataSource.coverHeight = height
+                    host.updateLayouts()
+                    dataSource.pages.forEach { $0.nestedPageContentScrollView.layoutIfNeeded() }
+                    XCTAssertEqual(anchorY(), originalAnchor, accuracy: 0.001)
+                    host.scrollToPage(at: 1, animated: false)
+                    if count == 30 { XCTAssertEqual(second.contentOffset.y, 560, accuracy: 0.001) }
+                    host.scrollToPage(at: 0, animated: false)
+                    XCTAssertEqual(anchorY(), originalAnchor, accuracy: 0.001)
+                    if count == 30 { XCTAssertEqual(first.contentOffset.y, oldOffset, accuracy: 0.001) }
+                }
+            }
+        }
+    }
+
     private func makeHost(dataSource: TestPages, automatic: Bool = true) -> NestedPageViewController {
         let host = NestedPageViewController()
         host.dataSource = dataSource
@@ -326,6 +386,7 @@ private final class SafeAreaScrollView: UIScrollView {
 private final class TestPages: NestedPageViewControllerDataSource {
     let pages: [TestPage]
     var showsHeader = true
+    var coverHeight: CGFloat = 204
     var preloadsPages = true
     private let cover = UIView()
     private let tab = UIView()
@@ -340,7 +401,9 @@ private final class TestPages: NestedPageViewControllerDataSource {
     }
     func coverView(in pageViewController: NestedPageViewController) -> UIView? { return cover }
     func tabStrip(in pageViewController: NestedPageViewController) -> UIView? { return tab }
-    func heightForCoverView(in pageViewController: NestedPageViewController) -> CGFloat { return showsHeader ? 204 : 0 }
+    func heightForCoverView(in pageViewController: NestedPageViewController) -> CGFloat {
+        return showsHeader ? coverHeight : 0
+    }
     func heightForTabStrip(in pageViewController: NestedPageViewController) -> CGFloat { return showsHeader ? 44 : 0 }
 }
 

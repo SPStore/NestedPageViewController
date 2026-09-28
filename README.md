@@ -349,6 +349,20 @@ NestedPageViewController原本是用OC编写，考虑到swift是主流，于是�
 
 示例工程中提供了完整的 Objective-C 桥接示例，可以参考 `Example/NestedPageExample/Examples-OC` 目录下的实现。
 
+### 切页与布局更新的位置保持
+
+`keepsContentScrollPosition` 默认是 `false`，统一控制非吸顶状态下切页和 `updateLayouts()` 时的位置保持：
+
+```swift
+nestedPageViewController.keepsContentScrollPosition = true
+// 修改头部高度的数据源后更新布局。
+nestedPageViewController.updateLayouts()
+```
+
+设为 `true` 时，更新布局会保留已加载列表的内容相对 tabStrip 底边的位置：顶部保持展开，吸顶保持吸顶，半展开时保留已折叠高度；无法承接的位置收敛到有效滚动范围。此行为适用于头部尺寸变化且子列表内容布局不变的场景，不负责数据增删或 cell 高度变化后的内容锚定。首次加载和 `rebuild()` 仍从初始位置开始。
+
+兼容性说明：以前 `updateLayouts()` 不受此属性控制、总是重置位置；现在设为 `true` 会保留位置。默认 `false` 的重置行为不变。Demo 可在设置中开启“保持内容滚动位置”，再进入“运行时修改头部高度”示例验证。
+
 ### 短内容的自动滚动范围
 
 `autoAdjustsContentSizeMinimumHeight` 默认是 `true`。短列表、空列表也会获得足够的滚动范围，使标签栏可以吸顶并在切页时保持位置。适用于原生 `UITableView`、Flow Layout、Compositional Layout，不要求自定义列表或 layout。

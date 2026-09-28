@@ -104,10 +104,10 @@ open class NestedPageViewController: UIViewController {
         return childManager.currentIndex
     }
     
-    /// 是否保持子列表的滚动位置
-    /// 当设置为true时，非吸顶状态下切换子列表时会保持每个列表的滚动位置
-    /// 当设置为false时，非吸顶状态下切换子列表时会将新的列表滚动到初始位置
-    /// 注意：调用 updateLayouts() 会重置所有已加载子列表的滚动位置，不受此属性控制。
+    /// 是否在切页及更新布局时保持子列表的滚动位置，默认为 false。
+    /// 非吸顶状态下切页时，true 保留各列表的位置，false 将新列表滚动到初始位置。
+    /// 调用 updateLayouts() 时，true 保留内容相对 tabStrip 的位置，false 重置所有已加载列表的位置。
+    /// 布局更新的位置保持适用于头部尺寸变化、子列表内容布局不变的场景；不负责数据增删或 cell 高度变化的锚定。
     open var keepsContentScrollPosition: Bool = false
     
     /// 控制scrollView滑动到顶部后继续下拉头部视图是否有弹性效果（也就是继续下拉scrollView，头部视图是否跟随下拉）
@@ -349,7 +349,10 @@ open class NestedPageViewController: UIViewController {
         headerManager.configureHeaderData()
         childManager.loadViewControllers()
         
-        // 布局
+        // 重建没有可沿用的旧布局，仍从初始位置开始。
+        let wasUpdatingLayouts = isUpdatingLayouts
+        isUpdatingLayouts = true
+        defer { isUpdatingLayouts = wasUpdatingLayouts }
         updateLayouts()
     }
     
@@ -359,10 +362,14 @@ open class NestedPageViewController: UIViewController {
     }
     
     /// 更新所有布局
-    /// 重新计算布局，并将所有已加载子列表恢复到初始滚动位置，即使 `keepsContentScrollPosition` 为 `true` 也不保留原位置。
+    /// keepsContentScrollPosition 为 true 时，保留已加载列表相对 tabStrip 的内容位置，否则恢复初始位置。
+    /// 保留位置时，顶部保持展开、吸顶保持吸顶；未吸顶时保留已折叠高度，越界位置收敛到可滚动范围。
+    /// 不负责数据增删或 cell 高度变化后的内容锚定；首次加载和 rebuild() 仍从初始位置开始。
     /// - 例如头部视图高度发生变化时，可以调用此方法。
     /// - 设备旋转时会自动调用。
     open func updateLayouts() {
+        let position = keepsContentScrollPosition && !isUpdatingLayouts
+            ? scrollCoordinator.captureLayoutPosition() : nil
         let wasUpdatingLayouts = isUpdatingLayouts
         isUpdatingLayouts = true
         defer { isUpdatingLayouts = wasUpdatingLayouts }
@@ -399,8 +406,12 @@ open class NestedPageViewController: UIViewController {
         // 强制更新布局
         view.setNeedsLayout()
         view.layoutIfNeeded()
+
+        if let position {
+            scrollCoordinator.restoreLayoutPosition(position)
+        }
     }
-    
+
     // MARK: - Private Methods
         
     private func setupViews() {

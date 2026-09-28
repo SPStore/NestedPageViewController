@@ -125,6 +125,7 @@ final class NestedPageScrollBehaviorTests: XCTestCase {
         let fixture = ScrollBehaviorFixture()
         fixture.enterHover()
         fixture.coverHeight = 120
+        fixture.host.keepsContentScrollPosition = false
         fixture.host.updateLayouts()
 
         XCTAssertEqual(fixture.pages[0].scrollView.contentOffset.y, -164)
@@ -140,6 +141,7 @@ final class NestedPageScrollBehaviorTests: XCTestCase {
         let fixture = ScrollBehaviorFixture()
         fixture.scroll(to: 100)
         XCTAssertTrue(fixture.host.isSticked)
+        fixture.host.keepsContentScrollPosition = false
         fixture.host.updateLayouts()
         // 保持旧实现的通知时机：布局重置本身不发布新的纵向滚动状态。
         XCTAssertTrue(fixture.host.isSticked)
@@ -220,7 +222,9 @@ final class NestedPageScrollBehaviorTests: XCTestCase {
     func testRepeatedSelectionStyleHeaderLayoutsDoNotRetainHoverState() {
         let fixture = ScrollBehaviorFixture()
         for _ in 0..<3 {
+            fixture.host.keepsContentScrollPosition = true
             fixture.enterHover()
+            fixture.host.keepsContentScrollPosition = false
             fixture.coverHeight = 0
             fixture.tabHeight = 0
             fixture.host.updateLayouts()
@@ -234,16 +238,58 @@ final class NestedPageScrollBehaviorTests: XCTestCase {
             fixture.host.scrollToPage(at: 0, animated: false)
         }
     }
+
+    func testDefaultPolicyStillResetsLayout() {
+        let host = NestedPageViewController()
+        XCTAssertFalse(host.keepsContentScrollPosition)
+        let fixture = ScrollBehaviorFixture(host: host, keepsPosition: host.keepsContentScrollPosition)
+        fixture.scroll(to: 140)
+        fixture.coverHeight = 304
+        host.updateLayouts()
+        XCTAssertEqual(fixture.pages.map { $0.scrollView.contentOffset.y }, [-348, -348])
+    }
+
+    func testInitialLayoutStartsExpandedWithInsetContentOrigin() {
+        for keepsPosition in [false, true] {
+            let fixture = ScrollBehaviorFixture(keepsPosition: keepsPosition, contentTop: 32)
+            XCTAssertEqual(fixture.pages.map { $0.scrollView.contentOffset.y }, [-248, -248])
+            XCTAssertEqual(fixture.headerY, 32, accuracy: 0.001)
+        }
+    }
+
+    func testRebuildStillStartsFromInitialPosition() {
+        let fixture = ScrollBehaviorFixture(contentTop: 32)
+        fixture.enterHover()
+        fixture.coverHeight = 304
+        fixture.host.rebuild()
+
+        XCTAssertTrue(fixture.host.keepsContentScrollPosition)
+        XCTAssertEqual(fixture.pages.map { $0.scrollView.contentOffset.y }, [-348, -348])
+        XCTAssertEqual(fixture.headerY, 32, accuracy: 0.001)
+        fixture.scroll(to: -328)
+        XCTAssertEqual(fixture.headerY, 12, accuracy: 0.001)
+    }
+
+    func testViewportResizeKeepsPositionWhenChildLayoutDoesNotReflow() {
+        let fixture = ScrollBehaviorFixture()
+        fixture.scroll(to: 140)
+        fixture.host.view.frame.size = CGSize(width: 700, height: 390)
+        fixture.host.updateLayouts()
+
+        XCTAssertEqual(fixture.pages[0].scrollView.contentOffset.y, 140)
+        XCTAssertEqual(fixture.headerY, -204, accuracy: 0.001)
+        XCTAssertEqual(fixture.host.containerScrollView.bounds.size, CGSize(width: 700, height: 390))
+    }
 }
 
-private final class ScrollBehaviorFixture: NestedPageViewControllerDataSource, NestedPageViewControllerDelegate {
+final class ScrollBehaviorFixture: NestedPageViewControllerDataSource, NestedPageViewControllerDelegate {
     struct Event {
         let pageOffsets: [CGFloat]
         let headerOffset: CGFloat
         let isSticked: Bool
     }
 
-    let host = NestedPageViewController()
+    let host: NestedPageViewController
     let pages: [ScrollBehaviorPage]
     let cover = UIView()
     let tab = UIView()
@@ -253,12 +299,14 @@ private final class ScrollBehaviorFixture: NestedPageViewControllerDataSource, N
     var events: [Event] = []
 
     init(
+        host: NestedPageViewController = NestedPageViewController(),
         keepsPosition: Bool = true,
         preloadsPages: Bool = true,
         contentTop: CGFloat = 0,
         stickyOffset: CGFloat = 0,
         headerBounces: Bool = true
     ) {
+        self.host = host
         self.preloadsPages = preloadsPages
         pages = [ScrollBehaviorPage(contentTop: contentTop), ScrollBehaviorPage(contentTop: contentTop)]
         host.dataSource = self
@@ -323,7 +371,7 @@ private final class ScrollBehaviorFixture: NestedPageViewControllerDataSource, N
     }
 }
 
-private final class ScrollBehaviorPage: UIViewController, NestedPageScrollable {
+final class ScrollBehaviorPage: UIViewController, NestedPageScrollable {
     let scrollView = BehaviorScrollView()
     let contentTop: CGFloat
     var nestedPageContentScrollView: UIScrollView { scrollView }
@@ -346,7 +394,7 @@ private final class ScrollBehaviorPage: UIViewController, NestedPageScrollable {
     }
 }
 
-private final class BehaviorScrollView: UIScrollView {
+final class BehaviorScrollView: UIScrollView {
     var simulatesDeceleration = false
     override var isDecelerating: Bool { simulatesDeceleration || super.isDecelerating }
 }

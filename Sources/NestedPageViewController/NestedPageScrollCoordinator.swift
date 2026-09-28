@@ -56,6 +56,72 @@ class NestedPageScrollCoordinator {
         let pinOffsetY = -previousPinY + scrollView.frame.minY
         return -scrollView.contentInset.top + min(pinOffsetY, headerManager.coverHeight - viewController.stickyOffset)
     }
+
+    // 仅在一次布局更新期间持有，不增加跨更新的滚动位置缓存。
+    struct LayoutPosition {
+        let collapsedHeight: CGFloat
+        let visibleHeaderHeight: CGFloat
+        let wasPinned: Bool
+        let offsets: [(scrollView: UIScrollView, offset: CGPoint)]
+    }
+
+    func captureLayoutPosition() -> LayoutPosition? {
+        guard let viewController, let headerManager, let childManager,
+              let current = childManager.currentContentScrollView else { return nil }
+        let maximumCollapse = max(0, headerManager.coverHeight - viewController.stickyOffset)
+        let collapsed = max(0, min(maximumCollapse, viewController.contentScrollViewY - headerManager.pin.frame.minY))
+        let wasPinned = !viewController.headerAlwaysFixed && collapsed >= maximumCollapse - 0.001 &&
+            (maximumCollapse > 0 || current.contentOffset.y > -headerManager.pageHeaderHeight)
+        return LayoutPosition(
+            collapsedHeight: collapsed,
+            visibleHeaderHeight: headerManager.pageHeaderHeight - collapsed,
+            wasPinned: wasPinned,
+            offsets: childManager.viewControllerMap.values.map {
+                let scrollView = $0.nestedPageContentScrollView
+                return (scrollView, scrollView.contentOffset)
+            }
+        )
+    }
+
+    func restoreLayoutPosition(_ position: LayoutPosition) {
+        guard let viewController, let headerManager, let childManager,
+              let current = childManager.currentContentScrollView,
+              let savedCurrent = position.offsets.first(where: { $0.scrollView === current }) else { return }
+        let headerHeight = headerManager.pageHeaderHeight
+        let maximumCollapse = max(0, headerManager.coverHeight - viewController.stickyOffset)
+        var collapsed = position.wasPinned ? maximumCollapse : min(position.collapsedHeight, maximumCollapse)
+        if viewController.headerAlwaysFixed { collapsed = 0 }
+
+        func restoredOffset(_ scrollView: UIScrollView, _ offsetY: CGFloat, visibleHeight: CGFloat) -> CGFloat {
+            let minimum = -scrollView.adjustedContentInset.top
+            let maximum = max(
+                minimum,
+                scrollView.contentSize.height - scrollView.bounds.height + scrollView.adjustedContentInset.bottom
+            )
+            return min(maximum, max(minimum, offsetY + position.visibleHeaderHeight - visibleHeight))
+        }
+
+        // 短列表承接不了原折叠量时展开头部，避免首项被遮挡；再统一补偿所有分页。
+        let currentOffset = restoredOffset(current, savedCurrent.offset.y, visibleHeight: headerHeight - collapsed)
+        collapsed = min(collapsed, max(0, currentOffset + headerHeight))
+        for (scrollView, offset) in position.offsets {
+            let offsetY = restoredOffset(scrollView, offset.y, visibleHeight: headerHeight - collapsed)
+            scrollView.setContentOffset(CGPoint(x: offset.x, y: offsetY), animated: false)
+        }
+
+        let pinY = viewController.contentScrollViewY - collapsed
+        headerManager.adjustPinY(pinY)
+        headerManager.movePageHeaderToFixedContainerByPin()
+        headerManager.movePageHeaderToPageHeaderByPin(currentIndex: childManager.currentIndex)
+        headerManager.removeShimView()
+        previousPinY = pinY
+        overflowPinHeight = collapsed
+        lastContentOffsetY = current.contentOffset.y
+        lastContentScrollView = current
+        keepsStick = lastContentOffsetY + headerHeight + viewController.stickyOffset > collapsed
+        isHorizontalScrolling = false
+        isSticked = pinY <= -headerManager.coverHeight
+    }
     
     // MARK: - Vertical Scrolling Management
     
