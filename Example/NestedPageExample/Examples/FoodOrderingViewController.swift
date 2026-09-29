@@ -1,7 +1,7 @@
 import UIKit
 import NestedPageViewController
 
-/// 双列表实验：商品列表承接公共头部，分类列表保留自己的原生拖拽和减速。
+/// 双列表实验：共享店铺头部 / 全宽轮播，右侧另有独立轮播，分类保留原生拖拽和减速。
 /// 本示例使用固定配置，避免设置页中的 headerAlwaysFixed 等选项改变实验条件。
 final class FoodOrderingViewController: UIViewController, NestedPageViewControllerDataSource, NestedPageViewControllerDelegate {
     private let pager = NestedPageViewController()
@@ -32,7 +32,8 @@ final class FoodOrderingViewController: UIViewController, NestedPageViewControll
         details.font = .systemFont(ofSize: 14)
         details.textColor = .secondaryLabel
         let tip = UILabel()
-        tip.text = "左右两栏都可上滑收起店铺信息"
+        tip.text = "上滑任意一栏：收起店铺 → 收起大轮播 → 独立滚动"
+        tip.numberOfLines = 2
         tip.font = .systemFont(ofSize: 13)
         let stack = UIStackView(arrangedSubviews: [name, details, tip])
         stack.axis = .vertical
@@ -55,7 +56,7 @@ final class FoodOrderingViewController: UIViewController, NestedPageViewControll
         pager.dataSource = self
         pager.delegate = self
         pager.headerBounces = false
-        pager.keepsContentScrollPosition = false
+        pager.keepsContentScrollPosition = true
         menu.pager = pager
         menu.onAdd = { [weak self] in
             guard let self else { return }
@@ -96,8 +97,9 @@ final class FoodOrderingViewController: UIViewController, NestedPageViewControll
         menu.stopMotion()
         pager.scrollToPage(at: 0, animated: false)
         pager.updateLayouts()
-        menu.resetCategoryPosition()
+        // updateLayouts 期间组件暂停滚动回调；先刷新共享区域与 inset，再按新边界重置分类。
         synchronizeHeader()
+        menu.resetCategoryPosition()
     }
 
     @objc private func toggleCategories() {

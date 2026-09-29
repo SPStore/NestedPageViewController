@@ -22,12 +22,32 @@ final class FoodOrderingTests: XCTestCase {
         XCTAssertEqual(host.headerHeight, 244, accuracy: 0.1)
         XCTAssertEqual(menu.nestedPageContentScrollView.contentOffset.y, -244, accuracy: 0.1)
         let category = menu.view.subviews.flatMap(\.subviews).compactMap { $0 as? UITableView }.first!
+        XCTAssertFalse(menu.nestedPageContentScrollView.bounces)
+        XCTAssertFalse(category.bounces)
+        XCTAssertFalse(category.alwaysBounceVertical)
         XCTAssertEqual(category.indexPathForSelectedRow?.row, 0)
-        XCTAssertEqual(category.contentOffset.y, -244, accuracy: 0.1)
+        XCTAssertEqual(category.contentOffset.y, -244 - FoodMenuViewController.sharedCarouselHeight, accuracy: 0.1)
         attach(screen, name: "点餐页-展开")
+        menu.nestedPageContentScrollView.contentOffset.y = -44 + 80
+        menu.view.layoutIfNeeded()
+        attach(screen, name: "点餐页-Tab吸顶-公共轮播部分收起")
+        menu.nestedPageContentScrollView.contentOffset.y = FoodMenuViewController.sharedCarouselHeight - 44
+        menu.view.layoutIfNeeded()
+        attach(screen, name: "点餐页-公共轮播收完-右侧轮播保留")
         menu.nestedPageContentScrollView.contentOffset.y = 700
         menu.view.layoutIfNeeded()
         attach(screen, name: "点餐页-吸顶")
+        let reset = demo.navigationItem.rightBarButtonItems!.first!
+        UIApplication.shared.sendAction(reset.action!, to: reset.target, from: reset, for: nil)
+        menu.view.layoutIfNeeded()
+        // 示例已开启位置保留；现有重置只更新布局，不强制清空商品阅读位置。
+        XCTAssertTrue(host.keepsContentScrollPosition)
+        XCTAssertEqual(menu.nestedPageContentScrollView.contentOffset.y, 700, accuracy: 0.1)
+        XCTAssertEqual(category.contentOffset.y + category.superview!.frame.minY, 0, accuracy: 0.1)
+        XCTAssertEqual(category.indexPathForSelectedRow?.row, 0)
+        XCTAssertEqual(category.superview!.frame.minY, 44, accuracy: 0.1)
+        XCTAssertFalse(menu.nestedPageContentScrollView.bounces)
+        XCTAssertFalse(category.bounces)
         screen.isHidden = true
     }
 
@@ -39,6 +59,19 @@ final class FoodOrderingTests: XCTestCase {
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
+    }
+
+    private func waitForScroll(_ scrollView: UIScrollView, to target: CGFloat) {
+        let arrived = expectation(description: "商品滚动到目标分组")
+        var fulfilled = false
+        // KVO 在 UIKit 修改 offset 的主线程回调；不让异步 predicate 持有整套 UIWindow 测试夹具。
+        let observation = scrollView.observe(\.contentOffset, options: [.initial, .new]) { _, change in
+            guard let offset = change.newValue, abs(offset.y - target) < 0.5, !fulfilled else { return }
+            fulfilled = true
+            arrived.fulfill()
+        }
+        wait(for: [arrived], timeout: 3)
+        observation.invalidate()
     }
 
     func testInitialGeometryAndFullWidthHeader() {
@@ -110,7 +143,7 @@ final class FoodOrderingTests: XCTestCase {
         f.moveCategories(by: 50)
         XCTAssertEqual(f.categoryDepth, 120, accuracy: 0.1)
         XCTAssertEqual(f.productDepth, 100, accuracy: 0.1)
-        // 商品在深处时，分类的原生回弹边界限制在 tab 下，不把商品突然拉回顶部。
+        // 商品在深处时，分类的原生滚动边界限制在 tab 下，不把商品突然拉回顶部。
         XCTAssertEqual(f.category.contentInset.top, 44, accuracy: 0.1)
     }
 
@@ -132,10 +165,7 @@ final class FoodOrderingTests: XCTestCase {
         let lastHeader = try XCTUnwrap(f.products.collectionViewLayout.layoutAttributesForSupplementaryView(ofKind: UICollectionView.elementKindSectionHeader, at: IndexPath(item: 0, section: 3)))
         let target = lastHeader.frame.minY - 44
         f.menu.tableView(f.category, didSelectRowAt: IndexPath(row: 3, section: 0))
-        let arrived = expectation(for: NSPredicate { _, _ in
-            abs(f.products.contentOffset.y - target) < 0.5
-        }, evaluatedWith: nil)
-        wait(for: [arrived], timeout: 3)
+        waitForScroll(f.products, to: target)
         XCTAssertEqual(f.category.indexPathForSelectedRow?.row, 3)
         XCTAssertEqual(f.category.indexPathsForSelectedRows?.count, 1)
         let header = f.products.collectionViewLayout.layoutAttributesForSupplementaryView(ofKind: UICollectionView.elementKindSectionHeader, at: IndexPath(item: 0, section: 3))!
@@ -168,6 +198,190 @@ final class FoodOrderingTests: XCTestCase {
         XCTAssertEqual(f.categoryDepth, 0, accuracy: 0.1)
         XCTAssertEqual(f.productDepth, 0, accuracy: 0.1)
     }
+
+    func testCarouselGeometryAndHorizontalScrollingAreIndependent() throws {
+        let f = FoodFixture(carousels: true)
+        XCTAssertEqual(f.categoryTop, 464, accuracy: 0.1)
+        XCTAssertEqual(f.categoryOrigin, 0, accuracy: 0.1)
+        XCTAssertEqual(f.categoryDepth, 0, accuracy: 0.1)
+        XCTAssertEqual(f.productDepth, 0, accuracy: 0.1)
+        let shared = try XCTUnwrap(f.products.layoutAttributesForItem(at: IndexPath(item: 0, section: 0)))
+        let right = try XCTUnwrap(f.products.layoutAttributesForItem(at: IndexPath(item: 0, section: 1)))
+        XCTAssertEqual(shared.frame, CGRect(x: 0, y: 0, width: 390, height: 220))
+        XCTAssertEqual(right.frame.minX, 104, accuracy: 0.1)
+        XCTAssertEqual(right.frame.minY, 220, accuracy: 0.1)
+        let sharedView = try XCTUnwrap(f.products.cellForItem(at: IndexPath(item: 0, section: 0))?.contentView.subviews.first as? FoodCarouselView)
+        let rightView = try XCTUnwrap(f.products.cellForItem(at: IndexPath(item: 0, section: 1))?.contentView.subviews.first as? FoodCarouselView)
+        sharedView.layoutIfNeeded()
+        rightView.layoutIfNeeded()
+        let pageOffset = f.host.containerScrollView.contentOffset
+        sharedView.contentOffset.x = 90
+        XCTAssertEqual(rightView.contentOffset.x, 0, accuracy: 0.1)
+        rightView.contentOffset.x = rightView.bounds.width
+        XCTAssertEqual(sharedView.contentOffset.x, 90, accuracy: 0.1)
+        XCTAssertEqual(f.products.contentOffset.y, -244, accuracy: 0.1)
+        XCTAssertEqual(f.categoryDepth, 0, accuracy: 0.1)
+        XCTAssertEqual(f.host.containerScrollView.contentOffset, pageOffset)
+    }
+
+    func testLeftDragConsumesCoverThenSharedCarouselThenOnlyCategories() {
+        let f = FoodFixture(carousels: true)
+        f.moveCategories(by: 200)
+        XCTAssertEqual(f.headerBottom, 44, accuracy: 0.1)
+        XCTAssertEqual(f.categoryTop, 264, accuracy: 0.1)
+        XCTAssertEqual(f.productDepth, 0, accuracy: 0.1)
+        f.moveCategories(by: 80)
+        XCTAssertEqual(f.headerBottom, 44, accuracy: 0.1)
+        XCTAssertEqual(f.categoryTop, 184, accuracy: 0.1)
+        f.moveCategories(by: 180)
+        XCTAssertEqual(f.categoryTop, 44, accuracy: 0.1)
+        XCTAssertEqual(f.categoryOrigin, 0, accuracy: 0.1)
+        XCTAssertEqual(f.categoryDepth, 40, accuracy: 0.1)
+        XCTAssertEqual(f.productDepth, 0, accuracy: 0.1)
+        XCTAssertEqual(f.products.contentOffset.y, 176, accuracy: 0.1)
+        f.moveCategories(by: 100)
+        XCTAssertEqual(f.categoryDepth, 140, accuracy: 0.1)
+        XCTAssertEqual(f.products.contentOffset.y, 176, accuracy: 0.1)
+    }
+
+    func testCategoryDecelerationCrossesBothSharedBoundaries() {
+        let f = FoodFixture(carousels: true)
+        f.moveCategories(by: 180)
+        f.category.simulatesDeceleration = true
+        for delta: CGFloat in [50, 160, 70, 20] { f.moveCategories(by: delta, dragging: false) }
+        XCTAssertEqual(f.headerBottom, 44, accuracy: 0.1)
+        XCTAssertEqual(f.categoryTop, 44, accuracy: 0.1)
+        XCTAssertEqual(f.categoryDepth, 60, accuracy: 0.1)
+        XCTAssertEqual(f.productDepth, 0, accuracy: 0.1)
+    }
+
+    func testRightCarouselScrollDoesNotMoveCategoryReadingPosition() {
+        let f = FoodFixture(carousels: true)
+        f.products.contentOffset.y = -44
+        XCTAssertEqual(f.categoryTop, 264, accuracy: 0.1)
+        f.products.contentOffset.y += 80
+        XCTAssertEqual(f.categoryTop, 184, accuracy: 0.1)
+        XCTAssertEqual(f.categoryDepth, 0, accuracy: 0.1)
+        f.products.contentOffset.y = 176
+        f.moveCategories(by: 60)
+        f.products.contentOffset.y += 70
+        XCTAssertEqual(f.categoryDepth, 60, accuracy: 0.1)
+        XCTAssertEqual(f.productDepth, 70, accuracy: 0.1)
+        XCTAssertEqual(f.category.contentInset.top, 44, accuracy: 0.1)
+        let productOffset = f.products.contentOffset
+        f.moveCategories(by: -100)
+        XCTAssertEqual(f.products.contentOffset, productOffset)
+        XCTAssertEqual(f.headerBottom, 44, accuracy: 0.1)
+    }
+
+    func testPullDownRestoresSharedCarouselBeforeStoreHeader() {
+        let f = FoodFixture(carousels: true)
+        f.moveCategories(by: 470)
+        f.moveCategories(by: -80)
+        XCTAssertEqual(f.categoryDepth, 0, accuracy: 0.1)
+        XCTAssertEqual(f.productDepth, 0, accuracy: 0.1)
+        XCTAssertEqual(f.headerBottom, 44, accuracy: 0.1)
+        XCTAssertEqual(f.categoryTop, 74, accuracy: 0.1)
+        f.moveCategories(by: -250)
+        XCTAssertEqual(f.headerBottom, 104, accuracy: 0.1)
+        XCTAssertEqual(f.categoryTop, 324, accuracy: 0.1)
+        f.moveCategories(by: -140)
+        f.moveCategories(by: -40)
+        f.moveCategories(by: 40)
+        XCTAssertEqual(f.headerBottom, 244, accuracy: 0.1)
+        XCTAssertEqual(f.categoryTop, 464, accuracy: 0.1)
+        XCTAssertEqual(f.categoryDepth, 0, accuracy: 0.1)
+        XCTAssertEqual(f.productDepth, 0, accuracy: 0.1)
+    }
+
+    func testShortCategoriesCanConsumeEntireSharedCarousel() {
+        let f = FoodFixture(short: true, carousels: true)
+        let size = f.category.contentSize
+        let maximumOffset = size.height - f.category.bounds.height + f.category.contentInset.bottom
+        XCTAssertGreaterThanOrEqual(maximumOffset, -44)
+        f.moveCategories(by: 420)
+        XCTAssertEqual(f.categoryTop, 44, accuracy: 0.1)
+        XCTAssertEqual(f.categoryDepth, 0, accuracy: 0.1)
+        XCTAssertEqual(f.productDepth, 0, accuracy: 0.1)
+        XCTAssertEqual(f.category.contentSize, size)
+    }
+
+    func testCategoryJumpSkipsBothCarouselsAndKeepsCorrectSelection() throws {
+        let f = FoodFixture(short: true, carousels: true)
+        let index = IndexPath(item: 0, section: 5)
+        let lastHeader = try XCTUnwrap(f.products.collectionViewLayout.layoutAttributesForSupplementaryView(ofKind: UICollectionView.elementKindSectionHeader, at: index))
+        let target = lastHeader.frame.minY - 44
+        f.menu.tableView(f.category, didSelectRowAt: IndexPath(row: 3, section: 0))
+        waitForScroll(f.products, to: target)
+        XCTAssertEqual(f.category.indexPathForSelectedRow?.row, 3)
+        XCTAssertEqual(f.category.indexPathsForSelectedRows?.count, 1)
+        XCTAssertEqual(f.categoryTop, 44, accuracy: 0.1)
+        let header = try XCTUnwrap(f.products.collectionViewLayout.layoutAttributesForSupplementaryView(ofKind: UICollectionView.elementKindSectionHeader, at: index))
+        XCTAssertEqual(header.frame.minY - f.products.contentOffset.y, 44, accuracy: 0.5)
+        XCTAssertLessThanOrEqual(target, f.products.contentSize.height - f.products.bounds.height + f.products.contentInset.bottom + 0.5)
+    }
+
+    func testCarouselRestoresAfterTabSwitchAndResize() {
+        let f = FoodFixture(carousels: true)
+        f.moveCategories(by: 470)
+        f.host.scrollToPage(at: 1, animated: false)
+        f.other.scroll.contentOffset.y = -164
+        f.host.scrollToPage(at: 0, animated: false)
+        XCTAssertEqual(f.headerBottom, 164, accuracy: 0.1)
+        XCTAssertEqual(f.categoryTop, 384, accuracy: 0.1)
+        XCTAssertEqual(f.categoryOrigin, 0, accuracy: 0.1)
+        XCTAssertEqual(f.categoryDepth, 50, accuracy: 0.1)
+        XCTAssertEqual(f.productDepth, 0, accuracy: 0.1)
+        f.host.view.frame.size = CGSize(width: 700, height: 390)
+        f.host.updateLayouts()
+        f.synchronizeHeader()
+        f.menu.resetCategoryPosition()
+        XCTAssertEqual(f.categoryTop, f.headerBottom + 220, accuracy: 0.1)
+        XCTAssertEqual(f.categoryDepth, 0, accuracy: 0.1)
+        XCTAssertEqual(f.productDepth, 0, accuracy: 0.1)
+    }
+
+    func testKeptProductPositionDoesNotLeaveCategoryGapAfterPullDown() {
+        // 覆盖店铺部分 / 完全展开，且有 / 无公共轮播的悬空头部状态。
+        for carousels in [false, true] {
+            for expandedHeight: CGFloat in [164, 244] {
+                let f = FoodFixture(carousels: carousels, keepsPosition: true)
+                f.products.contentOffset.y = 552
+                let depth = f.productDepth
+                f.host.scrollToPage(at: 1, animated: false)
+                f.other.scroll.contentOffset.y = -expandedHeight
+                f.host.scrollToPage(at: 0, animated: false)
+                XCTAssertEqual(f.headerBottom, expandedHeight, accuracy: 0.1)
+                XCTAssertEqual(f.productDepth, depth, accuracy: 0.1)
+                XCTAssertEqual(f.categoryTop, expandedHeight, accuracy: 0.1)
+                // 商品仍在深处，分类正常静止的上边界只能是当前可见区域，不能预留已滚走的轮播。
+                XCTAssertEqual(f.category.contentInset.top, f.categoryTop, accuracy: 0.1)
+                let productOffset = f.products.contentOffset
+                // 模拟左栏下拉后，原生滚动最终停在自身 inset 决定的上边界。
+                f.moveCategories(by: -f.category.contentInset.top - f.category.contentOffset.y)
+                XCTAssertEqual(f.categoryDepth, 0, accuracy: 0.1)
+                XCTAssertEqual(f.products.contentOffset, productOffset)
+            }
+        }
+    }
+
+    func testFloatingHeaderCollapsesFromCategoriesWithoutLosingProductPosition() {
+        let f = FoodFixture(carousels: true, keepsPosition: true)
+        f.products.contentOffset.y = 552
+        let depth = f.productDepth
+        f.host.scrollToPage(at: 1, animated: false)
+        f.other.scroll.contentOffset.y = -164
+        f.host.scrollToPage(at: 0, animated: false)
+        f.moveCategories(by: 50)
+        XCTAssertEqual(f.headerBottom, 114, accuracy: 0.1)
+        XCTAssertEqual(f.productDepth, depth, accuracy: 0.1)
+        XCTAssertEqual(f.categoryDepth, 0, accuracy: 0.1)
+        f.moveCategories(by: 100)
+        XCTAssertEqual(f.headerBottom, 44, accuracy: 0.1)
+        XCTAssertEqual(f.productDepth, depth, accuracy: 0.1)
+        XCTAssertEqual(f.categoryDepth, 30, accuracy: 0.1)
+        XCTAssertEqual(f.category.contentInset.top, 44, accuracy: 0.1)
+    }
 }
 
 private final class FoodFixture: NSObject, NestedPageViewControllerDataSource, NestedPageViewControllerDelegate {
@@ -178,21 +392,24 @@ private final class FoodFixture: NSObject, NestedPageViewControllerDataSource, N
     let cover = UIView()
     let tab = UIView()
     let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 700))
+    let carousels: Bool
     var products: UICollectionView { menu.nestedPageContentScrollView as! UICollectionView }
     var headerBottom: CGFloat { tab.convert(tab.bounds, to: menu.view).maxY }
     var categoryTop: CGFloat { category.superview!.frame.minY }
     var categoryOrigin: CGFloat { category.convert(category.bounds, to: menu.view).minY }
-    var categoryDepth: CGFloat { category.contentOffset.y + headerBottom }
-    var productDepth: CGFloat { products.contentOffset.y + headerBottom }
+    var categoryDepth: CGFloat { category.contentOffset.y + categoryTop }
+    var productDepth: CGFloat { products.contentOffset.y + categoryTop - (carousels ? FoodMenuViewController.sharedCarouselHeight : 0) }
 
-    init(short: Bool = false) {
-        menu = FoodMenuViewController(categoryTable: category)
+    init(short: Bool = false, carousels: Bool = false, keepsPosition: Bool = false) {
+        self.carousels = carousels
+        menu = FoodMenuViewController(categoryTable: category, showsCarousels: carousels)
         super.init()
         menu.usesShortCategories = short
         menu.pager = host
         host.dataSource = self
         host.delegate = self
         host.headerBounces = false
+        host.keepsContentScrollPosition = keepsPosition
         window.windowScene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
         window.rootViewController = UIViewController()
         window.makeKeyAndVisible()

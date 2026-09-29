@@ -58,7 +58,7 @@ class ExampleTypeModel {
         // 基础示例组
         let standardVC = ExampleTypeModel.model(title: "默认", targetClass: StandardViewController.self)
         let foodOrderingVC = ExampleTypeModel.model(title: "外卖点餐双列表", targetClass: FoodOrderingViewController.self)
-        foodOrderingVC.detailTitle = "分类 / 商品联动、短分类、分组吸顶与跨 Tab 切换"
+        foodOrderingVC.detailTitle = "共享轮播 / 右侧轮播、双列联动、短分类与跨 Tab 切换"
         let headerZoomVC = ExampleTypeModel.model(title: "头部缩放 + 导航栏隐藏（常见）", targetClass: HeaderZoomViewController.self)
         let partialRefreshVC = ExampleTypeModel.model(title: "局部下拉刷新", targetClass: PartialRefreshViewController.self)
         let globalRefreshVC = ExampleTypeModel.model(title: "全局下拉刷新", targetClass: GlobalRefreshViewController.self)

@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+        F00D00000000000000000040 /* FoodCarouselUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00D00000000000000000041; };
+        F00D00000000000000000030 /* FoodCarouselView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00D00000000000000000031; };
         F00D00000000000000000010 /* FoodOrderingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00D00000000000000000011; };
         F00D00000000000000000001 /* FoodOrderingViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00D00000000000000000002 /* FoodOrderingViewController.swift */; };
         F00D00000000000000000003 /* FoodMenuViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00D00000000000000000004 /* FoodMenuViewController.swift */; };
@@ -55,6 +57,9 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+        F00D00000000000000000041 /* FoodCarouselUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodCarouselUITests.swift; sourceTree = "<group>"; };
+        F00D00000000000000000042 /* NestedPageExampleUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = NestedPageExampleUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+        F00D00000000000000000031 /* FoodCarouselView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodCarouselView.swift; sourceTree = "<group>"; };
         F00D00000000000000000011 /* FoodOrderingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodOrderingTests.swift; sourceTree = "<group>"; };
         F00D00000000000000000012 /* NestedPageExampleTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = NestedPageExampleTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
         F00D00000000000000000002 /* FoodOrderingViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodOrderingViewController.swift; sourceTree = "<group>"; };
@@ -121,6 +126,7 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+        F00D00000000000000000043 /* NestedPageExampleUITests */ = {isa = PBXGroup; children = (F00D00000000000000000041,); path = NestedPageExampleUITests; sourceTree = "<group>"; };
         F00D00000000000000000013 /* NestedPageExampleTests */ = {isa = PBXGroup; children = (F00D00000000000000000011,); path = NestedPageExampleTests; sourceTree = "<group>"; };
 		B6E249CCA47C3DE1E32DC6E8 /* Frameworks */ = {
 			isa = PBXGroup;
@@ -135,6 +141,7 @@
 			children = (
 				BB553D932E63732B00798037 /* NestedPageExample */,
                 F00D00000000000000000013 /* NestedPageExampleTests */,
+                F00D00000000000000000043 /* NestedPageExampleUITests */,
 				BB553D192E6372E900798037 /* Products */,
 				F5C47F9A57A715EF9C54C388 /* Pods */,
 				B6E249CCA47C3DE1E32DC6E8 /* Frameworks */,
@@ -146,6 +153,7 @@
 			children = (
 				BB553D182E6372E900798037 /* NestedPageExample.app */,
                 F00D00000000000000000012 /* NestedPageExampleTests.xctest */,
+                F00D00000000000000000042 /* NestedPageExampleUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -157,6 +165,7 @@
 				BB553D762E63732B00798037 /* RecommendsViewController.swift */,
 				BB553D712E63732B00798037 /* FavoritesViewController.swift */,
                 F00D00000000000000000004 /* FoodMenuViewController.swift */,
+                F00D00000000000000000031 /* FoodCarouselView.swift */,
 				BB553D722E63732B00798037 /* LikesViewController.swift */,
 				BB4602772E69C4F4009B6A11 /* DefaulListVIewController.swift */,
 				BB553D732E63732B00798037 /* MyCollectionView.swift */,
@@ -247,6 +256,17 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+        F00D00000000000000000044 /* NestedPageExampleUITests */ = {
+            isa = PBXNativeTarget;
+            buildConfigurationList = F00D00000000000000000045;
+            buildPhases = (F00D00000000000000000046,);
+            buildRules = ();
+            dependencies = (F00D00000000000000000047,);
+            name = NestedPageExampleUITests;
+            productName = NestedPageExampleUITests;
+            productReference = F00D00000000000000000042;
+            productType = "com.apple.product-type.bundle.ui-testing";
+        };
         F00D00000000000000000014 /* NestedPageExampleTests */ = {
             isa = PBXNativeTarget;
             buildConfigurationList = F00D00000000000000000015;
@@ -309,6 +329,7 @@
 			targets = (
 				BB553D172E6372E900798037 /* NestedPageExample */,
                 F00D00000000000000000014 /* NestedPageExampleTests */,
+                F00D00000000000000000044 /* NestedPageExampleUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -370,6 +391,7 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+        F00D00000000000000000046 /* UI Test Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (F00D00000000000000000040,); runOnlyForDeploymentPostprocessing = 0; };
         F00D00000000000000000016 /* Test Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (F00D00000000000000000010,); runOnlyForDeploymentPostprocessing = 0; };
 		BB553D142E6372E900798037 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -379,6 +401,7 @@
 				BB553D942E63732B00798037 /* FavoritesViewController.swift in Sources */,
                 F00D00000000000000000001 /* FoodOrderingViewController.swift in Sources */,
                 F00D00000000000000000003 /* FoodMenuViewController.swift in Sources */,
+                F00D00000000000000000030 /* FoodCarouselView.swift in Sources */,
 				BB553D952E63732B00798037 /* LikesViewController.swift in Sources */,
 				BB553D962E63732B00798037 /* MyCollectionView.swift in Sources */,
 				BB9AADA82E8627ED00D202CC /* ChangeHeaderHeightViewController.swift in Sources */,
@@ -439,6 +462,32 @@
 /* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
+        F00D00000000000000000048 /* Debug */ = {
+            isa = XCBuildConfiguration;
+            buildSettings = {
+                IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+                GENERATE_INFOPLIST_FILE = YES;
+                PRODUCT_BUNDLE_IDENTIFIER = spstore.NestedPageExampleUITests;
+                PRODUCT_NAME = "$(TARGET_NAME)";
+                SWIFT_VERSION = 5.0;
+                TARGETED_DEVICE_FAMILY = "1,2";
+                TEST_TARGET_NAME = NestedPageExample;
+            };
+            name = Debug;
+        };
+        F00D00000000000000000049 /* Release */ = {
+            isa = XCBuildConfiguration;
+            buildSettings = {
+                IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+                GENERATE_INFOPLIST_FILE = YES;
+                PRODUCT_BUNDLE_IDENTIFIER = spstore.NestedPageExampleUITests;
+                PRODUCT_NAME = "$(TARGET_NAME)";
+                SWIFT_VERSION = 5.0;
+                TARGETED_DEVICE_FAMILY = "1,2";
+                TEST_TARGET_NAME = NestedPageExample;
+            };
+            name = Release;
+        };
         F00D00000000000000000018 /* Debug */ = {
             isa = XCBuildConfiguration;
             buildSettings = {
@@ -674,6 +723,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+        F00D00000000000000000045 /* UI Test configurations */ = {isa = XCConfigurationList; buildConfigurations = (F00D00000000000000000048, F00D00000000000000000049); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
         F00D00000000000000000015 /* Test configurations */ = {isa = XCConfigurationList; buildConfigurations = (F00D00000000000000000018, F00D00000000000000000019); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 		BB553D132E6372E900798037 /* Build configuration list for PBXProject "NestedPageExample" */ = {
 			isa = XCConfigurationList;
@@ -696,10 +746,12 @@
 /* End XCConfigurationList section */
 
 /* Begin PBXContainerItemProxy section */
+        F00D00000000000000000050 = {isa = PBXContainerItemProxy; containerPortal = BB553D102E6372E900798037; proxyType = 1; remoteGlobalIDString = BB553D172E6372E900798037; remoteInfo = NestedPageExample; };
         F00D00000000000000000020 = {isa = PBXContainerItemProxy; containerPortal = BB553D102E6372E900798037; proxyType = 1; remoteGlobalIDString = BB553D172E6372E900798037; remoteInfo = NestedPageExample; };
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXTargetDependency section */
+        F00D00000000000000000047 = {isa = PBXTargetDependency; target = BB553D172E6372E900798037; targetProxy = F00D00000000000000000050; };
         F00D00000000000000000017 = {isa = PBXTargetDependency; target = BB553D172E6372E900798037; targetProxy = F00D00000000000000000020; };
 /* End PBXTargetDependency section */
 	};

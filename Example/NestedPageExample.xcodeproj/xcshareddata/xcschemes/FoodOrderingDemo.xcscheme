@@ -10,6 +10,9 @@
    <TestAction buildConfiguration="Debug" selectedDebuggerIdentifier="Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier="Xcode.IDEFoundation.Launcher.LLDB" shouldUseLaunchSchemeArgsEnv="NO">
       <Testables>
          <TestableReference skipped="NO" parallelizable="NO">
+            <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="F00D00000000000000000044" BuildableName="NestedPageExampleUITests.xctest" BlueprintName="NestedPageExampleUITests" ReferencedContainer="container:NestedPageExample.xcodeproj"/>
+         </TestableReference>
+         <TestableReference skipped="NO" parallelizable="NO">
             <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="F00D00000000000000000014" BuildableName="NestedPageExampleTests.xctest" BlueprintName="NestedPageExampleTests" ReferencedContainer="container:NestedPageExample.xcodeproj"/>
          </TestableReference>
       </Testables>
