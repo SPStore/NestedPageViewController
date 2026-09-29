@@ -57,8 +57,6 @@ class ExampleTypeModel {
     static func demoGroups() -> [ExampleGroup] {
         // 基础示例组
         let standardVC = ExampleTypeModel.model(title: "默认", targetClass: StandardViewController.self)
-        let foodOrderingVC = ExampleTypeModel.model(title: "外卖点餐双列表", targetClass: FoodOrderingViewController.self)
-        foodOrderingVC.detailTitle = "共享轮播 / 右侧轮播、双列联动、短分类与跨 Tab 切换"
         let headerZoomVC = ExampleTypeModel.model(title: "头部缩放 + 导航栏隐藏（常见）", targetClass: HeaderZoomViewController.self)
         let partialRefreshVC = ExampleTypeModel.model(title: "局部下拉刷新", targetClass: PartialRefreshViewController.self)
         let globalRefreshVC = ExampleTypeModel.model(title: "全局下拉刷新", targetClass: GlobalRefreshViewController.self)
@@ -75,6 +73,9 @@ class ExampleTypeModel {
         preloadVC.detailTitle = "无需等待页面切换结束才加载内容，减少了空白页面的等待时长"
         let changeHeaderHeightVC = ExampleTypeModel.model(title: "运行时修改头部高度", targetClass: ChangeHeaderHeightViewController.self)
         let noHeaderVc = ExampleTypeModel.model(title: "没有头部", targetClass: NoHeaderViewController.self)
+        // 高级示例组
+        let foodOrderingVC = ExampleTypeModel.model(title: "外卖点餐双列表", targetClass: FoodOrderingViewController.self)
+        foodOrderingVC.detailTitle = "共享轮播 / 右侧轮播、双列联动、短分类与跨 Tab 切换"
         // 标签栏示例组
         let builtInTabStripVC = ExampleTypeModel.model(title: "简单定制内置tab栏", targetClass: BuiltInTabStripViewController.self)
         let customTabStripVC1 = ExampleTypeModel.model(title: "自定义tab栏1", targetClass: CustomTabStripViewController1.self)
@@ -86,7 +87,6 @@ class ExampleTypeModel {
         // 创建分组
         let basicGroup = ExampleGroup(title: "基础示例", examples: [
             standardVC,
-            foodOrderingVC,
             headerZoomVC,
             partialRefreshVC,
             globalRefreshVC,
@@ -101,6 +101,10 @@ class ExampleTypeModel {
             noHeaderVc,
         ])
         
+        let advancedGroup = ExampleGroup(title: "高级示例", examples: [
+            foodOrderingVC
+        ])
+
         let tabStripGroup = ExampleGroup(title: "标签栏示例", examples: [
             builtInTabStripVC,
             customTabStripVC1,
@@ -111,6 +115,6 @@ class ExampleTypeModel {
             ocExampleVC
         ])
         
-        return [basicGroup, tabStripGroup, ocGroup]
+        return [basicGroup, advancedGroup, tabStripGroup, ocGroup]
     }
 }

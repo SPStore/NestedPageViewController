@@ -85,20 +85,20 @@ extension GlobalRefreshViewController: NestedPageViewControllerDataSource {
             postsVc.ignoredScrollViewContentInsetTop = nestedPageViewController.headerHeight
             return postsVc
         case 1:
-            let recommendsVc = RecommendsViewController()
-            recommendsVc.refreshType = .global
-            recommendsVc.ignoredScrollViewContentInsetTop = nestedPageViewController.headerHeight
-            return recommendsVc
+            let likesVc = LikesViewController()
+            likesVc.refreshType = .global
+            likesVc.ignoredScrollViewContentInsetTop = nestedPageViewController.headerHeight
+            return likesVc
         case 2:
             let favoritesVc = FavoritesViewController()
             favoritesVc.refreshType = .global
             favoritesVc.ignoredScrollViewContentInsetTop = nestedPageViewController.headerHeight
             return favoritesVc
         case 3:
-            let likesVc = LikesViewController()
-            likesVc.refreshType = .global
-            likesVc.ignoredScrollViewContentInsetTop = nestedPageViewController.headerHeight
-            return likesVc
+            let recommendsVc = RecommendsViewController()
+            recommendsVc.refreshType = .global
+            recommendsVc.ignoredScrollViewContentInsetTop = nestedPageViewController.headerHeight
+            return recommendsVc
         default:
             return nil
         }

@@ -86,17 +86,17 @@ extension PartialRefreshViewController: NestedPageViewControllerDataSource {
             postsVc.refreshType = .partial
             return postsVc
         case 1:
-            let recommendsVc = RecommendsViewController()
-            recommendsVc.refreshType = .partial
-            return recommendsVc
+            let likesVc = LikesViewController()
+            likesVc.refreshType = .partial
+            return likesVc
         case 2:
             let favoritesVc = FavoritesViewController()
             favoritesVc.refreshType = .partial
             return favoritesVc
         case 3:
-            let likesVc = LikesViewController()
-            likesVc.refreshType = .partial
-            return likesVc
+            let recommendsVc = RecommendsViewController()
+            recommendsVc.refreshType = .partial
+            return recommendsVc
         default:
             return nil
         }

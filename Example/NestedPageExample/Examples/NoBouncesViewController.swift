@@ -64,11 +64,11 @@ extension NoBouncesViewController: NestedPageViewControllerDataSource {
         case 0:
             return PostsViewController()
         case 1:
-            return RecommendsViewController()
+            return LikesViewController()
         case 2:
             return FavoritesViewController()
         case 3:
-            return LikesViewController()
+            return RecommendsViewController()
         default:
             return nil
         }

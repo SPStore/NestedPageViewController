@@ -128,13 +128,13 @@ extension PinnedCollectionHeaderViewController: NestedPageViewControllerDataSour
         case 0:
             return PostsViewController()
         case 1:
-            return RecommendsViewController()
+            return LikesViewController()
         case 2:
             favoritesVC.isShowAndPinHeader = true
             favoritesVC.headerHeight = coverHeight + tabStripHeight
             return favoritesVC
         case 3:
-            return LikesViewController()
+            return RecommendsViewController()
         default:
             return nil
         }
