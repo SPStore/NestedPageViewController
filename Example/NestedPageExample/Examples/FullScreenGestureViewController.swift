@@ -14,6 +14,7 @@ class FullScreenGestureViewController: UIViewController {
     // MARK: - Properties
     
     private var nestedPageViewController = NestedPageViewController()
+    private var lastPageSize = CGSize.zero
     private var coverView: UIView = ProfileCoverView(frame: .zero)
     
     // MARK: - View Controllers
@@ -34,6 +35,17 @@ class FullScreenGestureViewController: UIViewController {
     
     // MARK: - Setup
 
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        let size = nestedPageViewController.view.bounds.size
+        guard size != lastPageSize else { return }
+        lastPageSize = size
+        // 安全区约束变化后同步组件内部的分页、头部和滚动范围。
+        if nestedPageViewController.viewController(at: nestedPageViewController.currentIndex) != nil {
+            nestedPageViewController.updateLayouts()
+        }
+    }
+
     private func setupNestedPageViewController() {
         nestedPageViewController.dataSource = self
         nestedPageViewController.delegate = self
@@ -44,30 +56,18 @@ class FullScreenGestureViewController: UIViewController {
         addChild(nestedPageViewController)
         view.addSubview(nestedPageViewController.view)
         
-        // 使用frame布局而不是Auto Layout
-        let safeAreaTop = view.safeAreaInsets.top
-        nestedPageViewController.view.frame = CGRect(
-            x: 0,
-            y: safeAreaTop,
-            width: view.bounds.width,
-            height: view.bounds.height - safeAreaTop
-        )
+        let safeArea = view.safeAreaLayoutGuide
+        nestedPageViewController.view.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            nestedPageViewController.view.topAnchor.constraint(equalTo: safeArea.topAnchor),
+            nestedPageViewController.view.leadingAnchor.constraint(equalTo: safeArea.leadingAnchor),
+            nestedPageViewController.view.trailingAnchor.constraint(equalTo: safeArea.trailingAnchor),
+            nestedPageViewController.view.bottomAnchor.constraint(equalTo: safeArea.bottomAnchor)
+        ])
         
         nestedPageViewController.didMove(toParent: self)
     }
     
-    override func viewDidLayoutSubviews() {
-        super.viewDidLayoutSubviews()
-        
-        // 更新NestedPageViewController的frame
-        let safeAreaTop = view.safeAreaInsets.top
-        nestedPageViewController.view.frame = CGRect(
-            x: 0,
-            y: safeAreaTop,
-            width: view.bounds.width,
-            height: view.bounds.height - safeAreaTop
-        )
-    }
 }
 
 // MARK: - NestedPageViewControllerDataSource

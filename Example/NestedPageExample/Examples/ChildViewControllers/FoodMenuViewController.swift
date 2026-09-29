@@ -2,7 +2,7 @@ import UIKit
 import NestedPageViewController
 
 final class FoodMenuViewController: UIViewController, NestedPageScrollable {
-    static let coverHeight: CGFloat = 200
+    static let coverHeight: CGFloat = 380
     static let tabHeight: CGFloat = 44
     static let sharedCarouselHeight: CGFloat = 144
     static let productCarouselHeight: CGFloat = 120
@@ -10,7 +10,8 @@ final class FoodMenuViewController: UIViewController, NestedPageScrollable {
     private let showsCarousels: Bool
     private var carouselHeight: CGFloat { showsCarousels ? Self.sharedCarouselHeight : 0 }
     private var leadingSectionCount: Int { showsCarousels ? 2 : 0 }
-    private var headerHeight: CGFloat { Self.coverHeight + Self.tabHeight }
+    private var headerHeight: CGFloat { pager?.headerHeight ?? Self.coverHeight + Self.tabHeight }
+    private var pinnedHeaderHeight: CGFloat { Self.tabHeight + (pager?.stickyOffset ?? 0) }
     private var selectedCategory = 0
     private var categoryScrollTarget: Int?
     private var lastLayoutSize = CGSize.zero
@@ -40,7 +41,7 @@ final class FoodMenuViewController: UIViewController, NestedPageScrollable {
     )
     private lazy var dualCoordinator = NestedPageDualScrollCoordinator(
         pageViewController: pager, contentView: dualScrollView,
-        expandedHeaderHeight: headerHeight, pinnedHeaderHeight: Self.tabHeight, sharedContentHeight: carouselHeight
+        expandedHeaderHeight: headerHeight, pinnedHeaderHeight: pinnedHeaderHeight, sharedContentHeight: carouselHeight
     )
     var nestedPageContentScrollView: UIScrollView { products }
 
@@ -82,6 +83,10 @@ final class FoodMenuViewController: UIViewController, NestedPageScrollable {
         categoryTableView.bounces = false
         categoryTableView.alwaysBounceVertical = false
         categoryTableView.accessibilityIdentifier = "food.categories"
+        if #available(iOS 26.0, *) {
+            products.topEdgeEffect.isHidden = true
+            categoryTableView.topEdgeEffect.isHidden = true
+        }
         dualCoordinator.layoutContent()
         // 首次商品布局尚未生成分组标题时，也要保证左栏有明确的初始选中项。
         selectCategory(at: 0)
@@ -100,10 +105,11 @@ final class FoodMenuViewController: UIViewController, NestedPageScrollable {
             productLayout.itemSize = CGSize(width: max(1, view.bounds.width - categoryWidth - 24), height: 104)
             productLayout.headerReferenceSize = CGSize(width: view.bounds.width, height: 36)
         }
+        dualCoordinator.updatePinnedHeaderHeight(pinnedHeaderHeight)
         dualCoordinator.layoutContent()
         // 最后一个商品分组不足一屏时才补足空间，保证点击分类也能把标题滚到 tab 下方。
         let lastHeight = CGFloat(productCount(in: names.count - 1)) * 104 + 36 + 12
-        let bottom = max(view.safeAreaInsets.bottom, view.bounds.height - Self.tabHeight - lastHeight)
+        let bottom = max(view.safeAreaInsets.bottom, view.bounds.height - pinnedHeaderHeight - lastHeight)
         if products.contentInset.top == headerHeight {
             pager?.setContentBottomInset(bottom, for: products)
         }
@@ -112,6 +118,7 @@ final class FoodMenuViewController: UIViewController, NestedPageScrollable {
 
     func updateSharedHeader(visibleHeight: CGFloat) {
         guard isViewLoaded else { return }
+        dualCoordinator.updatePinnedHeaderHeight(pinnedHeaderHeight)
         dualCoordinator.updateVisibleHeaderHeight(visibleHeight)
         productLayout.visibleContentTop = dualCoordinator.visibleSharedHeight
         productLayout.invalidateLayout()
@@ -195,7 +202,7 @@ extension FoodMenuViewController: UITableViewDataSource, UITableViewDelegate, UI
             categoryScrollTarget = nil
             return
         }
-        let target = headerY - Self.tabHeight
+        let target = headerY - pinnedHeaderHeight
         if abs(products.contentOffset.y - target) < 0.5 { categoryScrollTarget = nil }
         else { products.setContentOffset(CGPoint(x: 0, y: target), animated: true) }
     }

@@ -12,7 +12,7 @@ import NestedPageViewController
 final class NestedPageDualScrollCoordinator {
     let contentView: NestedPageDualScrollView
     let expandedHeaderHeight: CGFloat
-    let pinnedHeaderHeight: CGFloat
+    private(set) var pinnedHeaderHeight: CGFloat
     let sharedContentHeight: CGFloat
     private(set) var visibleHeaderHeight: CGFloat
     private(set) var visibleSharedHeight: CGFloat
@@ -75,6 +75,15 @@ final class NestedPageDualScrollCoordinator {
         layoutSecondaryViewport()
         updateSecondaryInsets()
         layoutSharedContent()
+    }
+
+    /// 导航栏或安全区改变时更新吸顶底边，随后仍由页面同步 Tab 的实际位置。
+    func updatePinnedHeaderHeight(_ height: CGFloat) {
+        precondition(height >= 0 && height <= expandedHeaderHeight)
+        guard pinnedHeaderHeight != height else { return }
+        pinnedHeaderHeight = height
+        stopMotion()
+        updateVisibleHeaderHeight(visibleHeaderHeight)
     }
 
     /// 传入 Tab 实际底边在 contentView 中的坐标，而不是仅传 isSticked。

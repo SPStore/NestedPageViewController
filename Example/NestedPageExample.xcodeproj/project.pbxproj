@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+        5AFE00000000000000000001 /* ExampleSafeAreaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AFE00000000000000000002; };
         F00D00000000000000000080 /* FoodOrderingTabStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00D00000000000000000081; };
         F00D00000000000000000082 /* FoodShopCoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00D00000000000000000083; };
         F00D00000000000000000060 /* NestedPageDualScrollCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00D00000000000000000061; };
@@ -63,6 +64,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+        5AFE00000000000000000002 /* ExampleSafeAreaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExampleSafeAreaTests.swift; sourceTree = "<group>"; };
         F00D00000000000000000081 /* FoodOrderingTabStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodOrderingTabStrip.swift; sourceTree = "<group>"; };
         F00D00000000000000000083 /* FoodShopCoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodShopCoverView.swift; sourceTree = "<group>"; };
         F00D00000000000000000061 /* NestedPageDualScrollCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NestedPageDualScrollCoordinator.swift; sourceTree = "<group>"; };
@@ -141,7 +143,7 @@
         F00D00000000000000000066 /* BusinessComponents */ = {isa = PBXGroup; children = (F00D00000000000000000067,); path = BusinessComponents; sourceTree = "<group>"; };
         F00D00000000000000000067 /* DualScroll */ = {isa = PBXGroup; children = (F00D00000000000000000061, F00D00000000000000000063, F00D00000000000000000065,); path = DualScroll; sourceTree = "<group>"; };
         F00D00000000000000000043 /* NestedPageExampleUITests */ = {isa = PBXGroup; children = (F00D00000000000000000041,); path = NestedPageExampleUITests; sourceTree = "<group>"; };
-        F00D00000000000000000013 /* NestedPageExampleTests */ = {isa = PBXGroup; children = (F00D00000000000000000011, F00D00000000000000000071,); path = NestedPageExampleTests; sourceTree = "<group>"; };
+        F00D00000000000000000013 /* NestedPageExampleTests */ = {isa = PBXGroup; children = (F00D00000000000000000011, F00D00000000000000000071, 5AFE00000000000000000002,); path = NestedPageExampleTests; sourceTree = "<group>"; };
 		B6E249CCA47C3DE1E32DC6E8 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
@@ -409,7 +411,7 @@
 
 /* Begin PBXSourcesBuildPhase section */
         F00D00000000000000000046 /* UI Test Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (F00D00000000000000000040,); runOnlyForDeploymentPostprocessing = 0; };
-        F00D00000000000000000016 /* Test Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (F00D00000000000000000010, F00D00000000000000000070,); runOnlyForDeploymentPostprocessing = 0; };
+        F00D00000000000000000016 /* Test Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (F00D00000000000000000010, F00D00000000000000000070, 5AFE00000000000000000001,); runOnlyForDeploymentPostprocessing = 0; };
 		BB553D142E6372E900798037 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;

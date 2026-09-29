@@ -2,6 +2,9 @@ import UIKit
 
 /// 本地绘制的暖色店铺封面，无网络图片依赖；底部信息卡与顶部品牌背景分层。
 final class FoodShopCoverView: UIView {
+    var topContentInset: CGFloat = 0 {
+        didSet { if topContentInset != oldValue { setNeedsLayout() } }
+    }
     override class var layerClass: AnyClass { CAGradientLayer.self }
     private let ornament = UIImageView(image: UIImage(systemName: "fork.knife.circle.fill"))
     private let slogan = UILabel()
@@ -26,6 +29,7 @@ final class FoodShopCoverView: UIView {
         ornament.transform = CGAffineTransform(rotationAngle: -.pi / 10)
         ornament.isAccessibilityElement = false
         slogan.text = "巷口有烟火"
+        slogan.accessibilityIdentifier = "food.slogan"
         slogan.font = .systemFont(ofSize: 25, weight: .semibold)
         slogan.textColor = UIColor(red: 1, green: 0.90, blue: 0.70, alpha: 1)
         tagline.text = "一日三餐 · 现炒家常味"
@@ -67,10 +71,12 @@ final class FoodShopCoverView: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
         ornament.bounds = CGRect(x: 0, y: 0, width: 116, height: 116)
-        ornament.center = CGPoint(x: bounds.width - 64, y: 34)
-        slogan.frame = CGRect(x: 20, y: 10, width: max(0, bounds.width - 132), height: 32)
-        tagline.frame = CGRect(x: 21, y: 45, width: max(0, bounds.width - 132), height: 16)
-        information.frame = CGRect(x: 12, y: 74, width: max(0, bounds.width - 24), height: max(0, bounds.height - 82))
+        let sloganTop = topContentInset + 24
+        ornament.center = CGPoint(x: bounds.width - 64, y: sloganTop + 24)
+        slogan.frame = CGRect(x: 20, y: sloganTop, width: max(0, bounds.width - 132), height: 32)
+        tagline.frame = CGRect(x: 21, y: sloganTop + 35, width: max(0, bounds.width - 132), height: 16)
+        let informationTop = sloganTop + 68
+        information.frame = CGRect(x: 12, y: informationTop, width: max(0, bounds.width - 24), height: max(0, bounds.height - informationTop - 28))
         logo.frame = CGRect(x: 12, y: 12, width: 46, height: 46)
         let textWidth = max(0, information.bounds.width - 82)
         name.frame = CGRect(x: 68, y: 12, width: textWidth, height: 25)

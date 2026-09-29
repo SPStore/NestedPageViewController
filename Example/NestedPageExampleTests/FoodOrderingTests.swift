@@ -58,19 +58,21 @@ final class FoodOrderingTests: XCTestCase {
         host.view.layoutIfNeeded()
         let menu = host.viewController(at: 0) as! FoodMenuViewController
         menu.view.layoutIfNeeded()
-        XCTAssertEqual(host.headerHeight, 244, accuracy: 0.1)
-        XCTAssertEqual(menu.nestedPageContentScrollView.contentOffset.y, -244, accuracy: 0.1)
+        let expandedHeight = FoodMenuViewController.coverHeight + FoodMenuViewController.tabHeight
+        let pinnedHeight = host.stickyOffset + FoodMenuViewController.tabHeight
+        XCTAssertEqual(host.headerHeight, expandedHeight, accuracy: 0.1)
+        XCTAssertEqual(menu.nestedPageContentScrollView.contentOffset.y, -expandedHeight, accuracy: 0.1)
         let category = menu.view.subviews.flatMap(\.subviews).compactMap { $0 as? UITableView }.first!
         XCTAssertFalse(menu.nestedPageContentScrollView.bounces)
         XCTAssertFalse(category.bounces)
         XCTAssertFalse(category.alwaysBounceVertical)
         XCTAssertEqual(category.indexPathForSelectedRow?.row, 0)
-        XCTAssertEqual(category.contentOffset.y, -244 - FoodMenuViewController.sharedCarouselHeight, accuracy: 0.1)
+        XCTAssertEqual(category.contentOffset.y, -expandedHeight - FoodMenuViewController.sharedCarouselHeight, accuracy: 0.1)
         attach(screen, name: "点餐页-展开")
-        menu.nestedPageContentScrollView.contentOffset.y = -44 + 80
+        menu.nestedPageContentScrollView.contentOffset.y = -pinnedHeight + 80
         menu.view.layoutIfNeeded()
         attach(screen, name: "点餐页-Tab吸顶-公共轮播部分收起")
-        menu.nestedPageContentScrollView.contentOffset.y = FoodMenuViewController.sharedCarouselHeight - 44
+        menu.nestedPageContentScrollView.contentOffset.y = FoodMenuViewController.sharedCarouselHeight - pinnedHeight
         menu.view.layoutIfNeeded()
         attach(screen, name: "点餐页-公共轮播收完-右侧轮播保留")
         menu.nestedPageContentScrollView.contentOffset.y = 700
@@ -84,7 +86,7 @@ final class FoodOrderingTests: XCTestCase {
         XCTAssertEqual(menu.nestedPageContentScrollView.contentOffset.y, 700, accuracy: 0.1)
         XCTAssertEqual(category.contentOffset.y + category.superview!.frame.minY, 0, accuracy: 0.1)
         XCTAssertEqual(category.indexPathForSelectedRow?.row, 0)
-        XCTAssertEqual(category.superview!.frame.minY, 44, accuracy: 0.1)
+        XCTAssertEqual(category.superview!.frame.minY, pinnedHeight, accuracy: 0.1)
         XCTAssertFalse(menu.nestedPageContentScrollView.bounces)
         XCTAssertFalse(category.bounces)
         screen.isHidden = true
@@ -98,6 +100,60 @@ final class FoodOrderingTests: XCTestCase {
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
+    }
+
+    func testFullBleedCoverAndNavigationFadeAcrossAllTabs() throws {
+        let screen = UIWindow(frame: UIScreen.main.bounds)
+        screen.windowScene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        let demo = FoodOrderingViewController()
+        demo.title = "入口传入的示例标题"
+        let navigation = UINavigationController(rootViewController: demo)
+        screen.rootViewController = navigation
+        screen.makeKeyAndVisible()
+        defer { screen.isHidden = true; screen.rootViewController = nil }
+        screen.layoutIfNeeded()
+        demo.view.layoutIfNeeded()
+        let host = try XCTUnwrap(demo.children.compactMap { $0 as? NestedPageViewController }.first)
+        host.view.layoutIfNeeded()
+        let cover = try XCTUnwrap(demo.coverView(in: host) as? FoodShopCoverView)
+        let tab = try XCTUnwrap(demo.tabStrip(in: host) as? FoodOrderingTabStrip)
+        let navigationBackground = try XCTUnwrap(demo.view.subviews.first { $0.accessibilityIdentifier == "food.navigationBackground" })
+        let navBottom = navigation.navigationBar.convert(navigation.navigationBar.bounds, to: demo.view).maxY
+        XCTAssertEqual(demo.navigationItem.title, "")
+        XCTAssertEqual(host.view.frame.minY, 0, accuracy: 0.5)
+        XCTAssertEqual(host.stickyOffset, navBottom, accuracy: 0.5)
+        XCTAssertEqual(cover.topContentInset, navBottom, accuracy: 0.5)
+        cover.layoutIfNeeded()
+        let slogan = try XCTUnwrap(cover.subviews.first { $0.accessibilityIdentifier == "food.slogan" })
+        let information = try XCTUnwrap(cover.subviews.first { $0.subviews.contains { $0.accessibilityIdentifier == "food.shop" } })
+        XCTAssertEqual(slogan.frame.minY, navBottom + 24, accuracy: 0.5)
+        XCTAssertEqual(cover.bounds.maxY - information.frame.maxY, 28, accuracy: 0.5)
+        for index in 0..<3 {
+            host.scrollToPage(at: index, animated: false)
+            host.scrollToTop(animated: false)
+            host.view.layoutIfNeeded()
+            let child = try XCTUnwrap(host.viewController(at: index))
+            child.view.layoutIfNeeded()
+            let list = child.nestedPageContentScrollView
+            XCTAssertEqual(list.frame.minY, 0, accuracy: 0.5)
+            XCTAssertEqual(cover.convert(cover.bounds, to: demo.view).minY, 0, accuracy: 0.5)
+            if #available(iOS 26.0, *) { XCTAssertTrue(list.topEdgeEffect.isHidden) }
+            for progress: CGFloat in [0, 0.5, 1] {
+                list.contentOffset.y = -host.headerHeight + (FoodMenuViewController.coverHeight - host.stickyOffset) * progress
+                for appearance in [demo.navigationItem.standardAppearance, demo.navigationItem.scrollEdgeAppearance,
+                                   demo.navigationItem.compactAppearance, demo.navigationItem.compactScrollEdgeAppearance] {
+                    XCTAssertEqual(appearance?.backgroundColor?.cgColor.alpha ?? 0, 0, accuracy: 0.01)
+                    XCTAssertNil(appearance?.backgroundEffect)
+                }
+                XCTAssertEqual(navigationBackground.alpha, progress, accuracy: 0.01)
+                XCTAssertEqual(tab.showsBackToTop, progress == 1)
+                XCTAssertEqual(demo.navigationItem.title, "")
+            }
+            XCTAssertEqual(tab.convert(tab.bounds, to: demo.view).minY, navBottom, accuracy: 0.5)
+        }
+        // 展开后背景层也要恢复透明，不能挡住品牌封面。
+        host.scrollToTop(animated: false)
+        XCTAssertEqual(navigationBackground.alpha, 0, accuracy: 0.01)
     }
 
     func testAnimatedExpansionRendersIntermediateStateWithoutMovingReadingPositions() {
@@ -142,6 +198,8 @@ final class FoodOrderingTests: XCTestCase {
             demo.view.layoutIfNeeded()
             let host = try XCTUnwrap(demo.children.compactMap { $0 as? NestedPageViewController }.first)
             host.view.layoutIfNeeded()
+            let expandedHeight = host.headerHeight
+            let pinnedHeight = host.stickyOffset + FoodMenuViewController.tabHeight
             let tab = try XCTUnwrap(demo.tabStrip(in: host) as? FoodOrderingTabStrip)
             tab.layoutIfNeeded()
             let menu = try XCTUnwrap(host.viewController(at: 0) as? FoodMenuViewController)
@@ -155,14 +213,14 @@ final class FoodOrderingTests: XCTestCase {
             XCTAssertEqual((review.titleLabel.attributedText?.attribute(.font, at: 3, effectiveRange: nil) as? UIFont)?.pointSize, 10)
 
             // 刚吸顶、公共轮播尚未收完时就应显示箭头；更新首项不能引发横向切页。
-            menu.nestedPageContentScrollView.contentOffset.y = -44
+            menu.nestedPageContentScrollView.contentOffset.y = -pinnedHeight
             XCTAssertTrue(tab.showsBackToTop)
             XCTAssertEqual(host.currentIndex, 0)
             for startingPage in [0, 1] {
                 menu.nestedPageContentScrollView.contentOffset.y = 700
                 category.contentOffset.y += 90
-                let productDepth = menu.nestedPageContentScrollView.contentOffset.y + 44 - sharedHeight
-                let categoryDepth = category.contentOffset.y + 44
+                let productDepth = menu.nestedPageContentScrollView.contentOffset.y + pinnedHeight - sharedHeight
+                let categoryDepth = category.contentOffset.y + pinnedHeight
                 let selectedCategory = category.indexPathForSelectedRow
                 if startingPage == 1 {
                     tab.collectionView.delegate?.collectionView?(tab.collectionView, didSelectItemAt: IndexPath(item: 1, section: 0))
@@ -170,16 +228,16 @@ final class FoodOrderingTests: XCTestCase {
                 XCTAssertTrue(tab.showsBackToTop)
                 // 经由第三方真实点击回调，覆盖重复点击与从评价页点击回点餐两条路径。
                 tab.collectionView.delegate?.collectionView?(tab.collectionView, didSelectItemAt: IndexPath(item: 0, section: 0))
-                waitForScroll(menu.nestedPageContentScrollView, to: productDepth - 244, accuracy: 0.01)
+                waitForScroll(menu.nestedPageContentScrollView, to: productDepth - expandedHeight, accuracy: 0.01)
                 menu.view.layoutIfNeeded()
                 XCTAssertEqual(host.currentIndex, 0)
                 XCTAssertEqual(tab.selectedIndex, 0)
                 XCTAssertFalse(tab.showsBackToTop)
-                XCTAssertEqual(menu.nestedPageContentScrollView.contentOffset.y + 244, productDepth, accuracy: 0.1)
-                XCTAssertEqual(category.contentOffset.y + 244 + sharedHeight, categoryDepth, accuracy: 0.1)
+                XCTAssertEqual(menu.nestedPageContentScrollView.contentOffset.y + expandedHeight, productDepth, accuracy: 0.1)
+                XCTAssertEqual(category.contentOffset.y + expandedHeight + sharedHeight, categoryDepth, accuracy: 0.1)
                 XCTAssertEqual(category.indexPathForSelectedRow, selectedCategory)
                 let shared = try XCTUnwrap((menu.view as? NestedPageDualScrollView)?.sharedContentView)
-                XCTAssertEqual(shared.convert(shared.bounds, to: menu.view).minY, 244, accuracy: 0.1)
+                XCTAssertEqual(shared.convert(shared.bounds, to: menu.view).minY, expandedHeight, accuracy: 0.1)
                 XCTAssertFalse(shared.superview!.isHidden)
                 if startingPage == 0 { attach(screen, name: "展开封面与共享轮播-保留两列阅读位置") }
             }

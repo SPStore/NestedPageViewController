@@ -44,13 +44,20 @@
     }
     _dataArray = [data copy];
     
-    _tableView = [[UITableView alloc] initWithFrame: self.view.bounds style:UITableViewStylePlain];
-    _tableView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    _tableView = [[UITableView alloc] initWithFrame:CGRectZero style:UITableViewStylePlain];
+    _tableView.translatesAutoresizingMaskIntoConstraints = NO;
     _tableView.dataSource = self;
     _tableView.delegate = self;
     _tableView.rowHeight = 60;
     [_tableView registerClass:[UITableViewCell class] forCellReuseIdentifier:@"Cell"];
     [self.view addSubview:_tableView];
+    UILayoutGuide *safeArea = self.view.safeAreaLayoutGuide;
+    [NSLayoutConstraint activateConstraints:@[
+        [_tableView.topAnchor constraintEqualToAnchor:safeArea.topAnchor],
+        [_tableView.leadingAnchor constraintEqualToAnchor:safeArea.leadingAnchor],
+        [_tableView.trailingAnchor constraintEqualToAnchor:safeArea.trailingAnchor],
+        [_tableView.bottomAnchor constraintEqualToAnchor:safeArea.bottomAnchor]
+    ]];
 }
 
 #pragma mark - UITableViewDataSource
@@ -84,6 +91,7 @@
 @property (nonatomic, strong) NestedPageViewControllerObjcBridge *pageViewControllerBridge;
 @property (nonatomic, strong) NSArray<NSString *> *titles;
 @property (nonatomic, strong) UIView *coverView;
+@property (nonatomic) CGSize lastPageSize;
 
 // 自定义导航栏相关
 @property (nonatomic, strong) UIView *customNavigationBar;
@@ -126,49 +134,25 @@
     titleLabel.textColor = UIColor.labelColor;
     [self.navigationContentView addSubview:titleLabel];
     
-    // 设置布局
-    [self layoutCustomNavigationBar];
-}
-
-- (void)layoutCustomNavigationBar {
-    CGFloat safeAreaTop = self.view.safeAreaInsets.top;
-    CGFloat navBarHeight = 44.0;
-    CGFloat totalNavBarHeight = safeAreaTop + navBarHeight;
-    
-    // 设置导航栏容器frame
-    self.customNavigationBar.frame = CGRectMake(
-        0,
-        0,
-        self.view.bounds.size.width,
-        totalNavBarHeight
-    );
-    
-    // 设置导航内容视图frame
-    self.navigationContentView.frame = CGRectMake(
-        0,
-        safeAreaTop,
-        self.view.bounds.size.width,
-        navBarHeight
-    );
-    
-    // 获取并设置标题标签frame
-    UILabel *titleLabel = nil;
-    for (UIView *subview in self.navigationContentView.subviews) {
-        if ([subview isKindOfClass:[UILabel class]]) {
-            titleLabel = (UILabel *)subview;
-            break;
-        }
-    }
-    
-    if (titleLabel) {
-        [titleLabel sizeToFit];
-        titleLabel.frame = CGRectMake(
-            (self.view.bounds.size.width - titleLabel.frame.size.width) / 2,
-            (navBarHeight - titleLabel.frame.size.height) / 2,
-            titleLabel.frame.size.width,
-            titleLabel.frame.size.height
-        );
-    }
+    self.customNavigationBar.translatesAutoresizingMaskIntoConstraints = NO;
+    self.navigationContentView.translatesAutoresizingMaskIntoConstraints = NO;
+    titleLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    UILayoutGuide *safeArea = self.view.safeAreaLayoutGuide;
+    UILayoutGuide *contentSafeArea = self.navigationContentView.safeAreaLayoutGuide;
+    [NSLayoutConstraint activateConstraints:@[
+        // 只有导航栏背景延伸到状态栏，标题及按钮使用安全区。
+        [self.customNavigationBar.topAnchor constraintEqualToAnchor:self.view.topAnchor],
+        [self.customNavigationBar.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
+        [self.customNavigationBar.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
+        [self.customNavigationBar.bottomAnchor constraintEqualToAnchor:self.navigationContentView.bottomAnchor],
+        [self.navigationContentView.topAnchor constraintEqualToAnchor:safeArea.topAnchor],
+        [self.navigationContentView.leadingAnchor constraintEqualToAnchor:safeArea.leadingAnchor],
+        [self.navigationContentView.trailingAnchor constraintEqualToAnchor:safeArea.trailingAnchor],
+        [self.navigationContentView.heightAnchor constraintEqualToConstant:44],
+        [titleLabel.centerXAnchor constraintEqualToAnchor:contentSafeArea.centerXAnchor],
+        [titleLabel.centerYAnchor constraintEqualToAnchor:contentSafeArea.centerYAnchor],
+        [titleLabel.widthAnchor constraintLessThanOrEqualToAnchor:contentSafeArea.widthAnchor constant:-112]
+    ]];
 }
 
 - (void)setupBackButton {
@@ -182,22 +166,13 @@
     
     // 直接添加到控制器的view上，确保始终可见
     [self.view addSubview:self.backButton];
-}
-
-- (void)layoutBackButton {
-    CGFloat safeAreaTop = self.view.safeAreaInsets.top;
-    CGFloat navBarHeight = 44.0;
-    
-    CGFloat buttonWidth = 40.0;
-    CGFloat buttonHeight = 30.0;
-    
-    // 设置位置与原导航栏中的返回按钮完全一致
-    self.backButton.frame = CGRectMake(
-        16,
-        safeAreaTop + (navBarHeight - buttonHeight) / 2,
-        buttonWidth,
-        buttonHeight
-    );
+    self.backButton.translatesAutoresizingMaskIntoConstraints = NO;
+    [NSLayoutConstraint activateConstraints:@[
+        [self.backButton.leadingAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.leadingAnchor constant:16],
+        [self.backButton.centerYAnchor constraintEqualToAnchor:self.navigationContentView.safeAreaLayoutGuide.centerYAnchor],
+        [self.backButton.widthAnchor constraintEqualToConstant:40],
+        [self.backButton.heightAnchor constraintEqualToConstant:30]
+    ]];
 }
 
 - (void)backButtonTapped {
@@ -213,16 +188,23 @@
     self.titles = @[@"推荐", @"关注", @"热门", @"附近"];
     
     // 创建封面视图
-    self.coverView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, self.view.bounds.size.width, 200)];
+    self.coverView = [[UIView alloc] init];
     self.coverView.backgroundColor = UIColor.systemPinkColor;
     
     // 添加标题标签
-    UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 120, self.view.bounds.size.width - 40, 60)];
+    UILabel *titleLabel = [[UILabel alloc] init];
+    titleLabel.translatesAutoresizingMaskIntoConstraints = NO;
     titleLabel.text = @"ObjC桥接示例";
     titleLabel.font = [UIFont boldSystemFontOfSize:28];
     titleLabel.textColor = UIColor.whiteColor;
     titleLabel.textAlignment = NSTextAlignmentCenter;
     [self.coverView addSubview:titleLabel];
+    [NSLayoutConstraint activateConstraints:@[
+        [titleLabel.leadingAnchor constraintEqualToAnchor:self.coverView.safeAreaLayoutGuide.leadingAnchor constant:20],
+        [titleLabel.trailingAnchor constraintEqualToAnchor:self.coverView.safeAreaLayoutGuide.trailingAnchor constant:-20],
+        [titleLabel.bottomAnchor constraintEqualToAnchor:self.coverView.safeAreaLayoutGuide.bottomAnchor constant:-20],
+        [titleLabel.heightAnchor constraintEqualToConstant:60]
+    ]];
     
     // 创建并配置NestedPageViewController
     self.pageViewControllerBridge = [[NestedPageViewControllerObjcBridge alloc] init];
@@ -231,9 +213,20 @@
     
     // 应用全局配置
     [[NestedPageConfig shared] applyConfigTo:self.pageViewControllerBridge.nestedPageViewController];
+    // 容器已从安全区顶部开始，吸顶位置只需避开自定义导航内容。
+    self.pageViewControllerBridge.stickyOffset = 44;
     
     // 添加到父视图控制器
     [self.pageViewControllerBridge addToParentViewController:self];
+    UIView *pageView = self.pageViewControllerBridge.nestedPageViewController.view;
+    pageView.translatesAutoresizingMaskIntoConstraints = NO;
+    UILayoutGuide *safeArea = self.view.safeAreaLayoutGuide;
+    [NSLayoutConstraint activateConstraints:@[
+        [pageView.topAnchor constraintEqualToAnchor:safeArea.topAnchor],
+        [pageView.leadingAnchor constraintEqualToAnchor:safeArea.leadingAnchor],
+        [pageView.trailingAnchor constraintEqualToAnchor:safeArea.trailingAnchor],
+        [pageView.bottomAnchor constraintEqualToAnchor:safeArea.bottomAnchor]
+    ]];
     
     // 设置自定义导航栏
     [self setupCustomNavigationBar];
@@ -242,22 +235,14 @@
 
 - (void)viewDidLayoutSubviews {
     [super viewDidLayoutSubviews];
-    
-    // 更新自定义导航栏布局
-    [self layoutCustomNavigationBar];
-    
-    // 更新返回按钮布局
-    [self layoutBackButton];
-    
-    // 设置NestedPageViewController的视图布局
-    CGFloat safeBottom = self.view.safeAreaInsets.bottom;
-    self.pageViewControllerBridge.containerInsets = UIEdgeInsetsMake(0, 0, safeBottom, 0);
-    self.pageViewControllerBridge.nestedPageViewController.view.frame = self.view.bounds;
-    
-    CGFloat safeAreaTop = self.view.safeAreaInsets.top;
-    CGFloat navBarHeight = 44;
-    // 调整吸顶位置偏移，由于nestedPageViewController.view是全屏的，默认只有到达屏幕最顶端才会吸顶，这里设置吸顶位置在导航栏的下方
-    self.pageViewControllerBridge.stickyOffset = safeAreaTop + navBarHeight;
+    CGSize size = self.pageViewControllerBridge.nestedPageViewController.view.bounds.size;
+    if (!CGSizeEqualToSize(size, self.lastPageSize)) {
+        self.lastPageSize = size;
+        // 安全区改变后同步已加载组件的内部布局。
+        if (self.pageViewControllerBridge.nestedPageViewController.childViewControllers.count > 0) {
+            [self.pageViewControllerBridge updateLayouts];
+        }
+    }
 }
 
 #pragma mark - NestedPageViewControllerDataSourceObjc
@@ -322,7 +307,7 @@ contentScrollViewDidScroll:(UIScrollView *)scrollView
     CGFloat headerOffsetY = headerOffset;
         
     // 计算导航栏透明度
-    CGFloat scrollDistance = headerHeight - self.customNavigationBar.frame.size.height - tabHeight;
+    CGFloat scrollDistance = MAX(1, headerHeight - self.pageViewControllerBridge.stickyOffset - tabHeight);
     self.customNavigationBar.alpha = MIN(MAX(headerOffsetY / scrollDistance, 0.0), 1.0);
 }
 

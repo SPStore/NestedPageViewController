@@ -56,10 +56,10 @@ class FavoritesViewController: ChildBaseViewController {
     private func setupCollectionView() {
         view.addSubview(collectionView)
         NSLayoutConstraint.activate([
-            collectionView.topAnchor.constraint(equalTo: view.topAnchor),
-            collectionView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            collectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            collectionView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+            collectionView.topAnchor.constraint(equalTo: contentTopAnchor),
+            collectionView.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
+            collectionView.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor),
+            collectionView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor)
         ])
     }
     
@@ -178,9 +178,9 @@ extension FavoritesViewController: UICollectionViewDelegateFlowLayout {
     }
     
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
-        let screenWidth = UIScreen.main.bounds.width
+        let availableWidth = collectionView.bounds.width
         let totalHorizontalPadding: CGFloat = 10 + 10 + 10 // left + right + middle spacing
-        let cellWidth = (screenWidth - totalHorizontalPadding) / 2
+        let cellWidth = max(1, (availableWidth - totalHorizontalPadding) / 2)
         return CGSize(width: cellWidth, height: cellWidth)
     }
     

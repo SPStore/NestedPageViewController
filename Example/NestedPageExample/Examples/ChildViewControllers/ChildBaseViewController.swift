@@ -24,6 +24,13 @@ class ChildBaseViewController: UIViewController {
     
     var ignoredScrollViewContentInsetTop: CGFloat = 0.0
 
+    /// 在视图加载前设置；头部缩放示例需要让列表及其封面延伸到屏幕顶部。
+    var usesTopSafeArea = true
+
+    var contentTopAnchor: NSLayoutYAxisAnchor {
+        usesTopSafeArea ? view.safeAreaLayoutGuide.topAnchor : view.topAnchor
+    }
+
     override func viewDidLoad() {
         super.viewDidLoad()
 

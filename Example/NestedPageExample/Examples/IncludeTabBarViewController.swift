@@ -34,7 +34,7 @@ class IncludeTabBarViewController: NestedPageViewController {
         
         dataSource = self
         
-        // 由于是继承方式，self.view默认是全屏的，通过设置automaticallyAdjustsContainerInsets = true，内部会自动设置容器顶部和底部的安全距离。等效于设置containerInsets = UIEdgeInsets(safeTop, 0, safeBottom, 0)
+        // 示例入口的宿主已约束到安全区；单独使用本控制器时仍启用组件的安全区适配。
         automaticallyAdjustsContainerInsets = true
                 
         // 应用全局配置

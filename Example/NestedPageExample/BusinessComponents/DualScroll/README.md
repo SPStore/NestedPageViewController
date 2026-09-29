@@ -25,8 +25,8 @@ private lazy var dualScrollView = NestedPageDualScrollView(
 private lazy var dualCoordinator = NestedPageDualScrollCoordinator(
     pageViewController: pager,
     contentView: dualScrollView,
-    expandedHeaderHeight: 244, // 店铺 200 + Tab 44
-    pinnedHeaderHeight: 44,
+    expandedHeaderHeight: headerHeight, // 与 pager.headerHeight 一致：店铺封面 + Tab
+    pinnedHeaderHeight: (pager?.stickyOffset ?? 0) + 44, // 系统导航栏底边 + Tab
     sharedContentHeight: 144  // 主列表内容开头仍保留等高占位；没有时传 0
 )
 
@@ -45,7 +45,7 @@ override func loadView() {
 
    注册接受普通 `UIScrollView` / `UICollectionView`，同一实例重复注册不会增加手势。它保证内部起拖时外层不横向翻页，但内部横纵方向识别仍由各滚动视图负责；`FoodCarouselView` 保留了自己的方向判断。不要让主列表的纵向 pan 等待轮播 pan 失败。
 
-2. 在 `viewDidLayoutSubviews` 调用 `dualCoordinator.layoutContent()`。副列表内容量变化后也需要重新布局，以更新短内容 bottom inset。主列表的商品行等应自行给左侧副列表留出空间；只有公共区域占满整行。
+2. 在 `viewDidLayoutSubviews` 调用 `dualCoordinator.layoutContent()`。如果导航栏高度或安全区变化，先用 `updatePinnedHeaderHeight(pager.stickyOffset + 44)` 同步新的吸顶底边。副列表内容量变化后也需要重新布局，以更新短内容 bottom inset。主列表的商品行等应自行给左侧副列表留出空间；只有公共区域占满整行。
 
 3. 在页面原有的两个滚动代理回调中转发，业务自身的逻辑继续保留：
 
@@ -88,7 +88,7 @@ override func loadView() {
 - 展开动画使用单一 `CADisplayLink` 更新实际几何，按原阅读锚点计算每帧绝对 offset，并将中间高度对齐屏幕像素，避免累计舍入漂移。用户拖动、切页、`stopMotion()`、尺寸变化或离屏时中断在当前位置；页面释放时销毁时钟，不保留动画引用环。启用系统「减弱动态效果」或视图未显示时立即展开。
 - 动画中的核心回调仍可能落在两列补偿之间；业务计算分类前应检查 `isUpdatingSharedHeader`，在 `onUpdate` 中再统一更新。外层页面离屏前应调用 `stopMotion()`。
 - 副列表的 inset / offset / frame 由协调器管理；主列表的 inset 由核心及页面业务管理。不能同时再用其他联动代码修改副列表几何。
-- 当前提炼范围是固定头部尺寸、固定左栏宽度、主列表全宽的双列表场景。动态修改头部 / 公共区域高度、右侧副列表、任意多列表和固定不折叠头部不在此版本的接入约定内。
+- 当前提炼范围是固定展开头部尺寸、固定左栏宽度、主列表全宽的双列表场景；吸顶边界支持随导航栏布局更新。动态修改展开头部 / 公共区域高度、右侧副列表、任意多列表和固定不折叠头部不在此版本的接入约定内。
 - 保留主列表位置时，允许头部展开但主列表独立内容仍在深处。此时副列表只回到当前可见区域顶部，不强行拖回主列表。关闭回弹不会关闭正常的共享区域展开 / 收起。
 
 ## 验证

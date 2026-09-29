@@ -11,6 +11,8 @@ final class FoodOrderingViewController: UIViewController, NestedPageViewControll
     private let menu = FoodMenuViewController()
     private let cartLabel = UILabel()
     private let cart = UIView()
+    private let navigationBackground = UIView()
+    private lazy var navigationBackgroundHeight = navigationBackground.heightAnchor.constraint(equalToConstant: 0)
     private var lastPagerSize = CGSize.zero
     private var itemCount = 0
     private var returnsToTopAfterTabClick = false
@@ -22,7 +24,11 @@ final class FoodOrderingViewController: UIViewController, NestedPageViewControll
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
-        title = "外卖点餐双列表"
+        title = nil
+        navigationItem.title = ""
+        navigationItem.largeTitleDisplayMode = .never
+        extendedLayoutIncludesOpaqueBars = true
+        setupNavigationBar()
         navigationItem.rightBarButtonItems = [
             UIBarButtonItem(title: "重置", style: .plain, target: self, action: #selector(reset)),
             UIBarButtonItem(title: "短分类", style: .plain, target: self, action: #selector(toggleCategories))
@@ -33,6 +39,10 @@ final class FoodOrderingViewController: UIViewController, NestedPageViewControll
         pager.dataSource = self
         pager.delegate = self
         pager.headerBounces = false
+        pager.stickyOffset = view.safeAreaInsets.top
+        if #available(iOS 26.0, *) {
+            pager.containerScrollView.topEdgeEffect.isHidden = true
+        }
         pager.keepsContentScrollPosition = NestedPageConfig.shared.keepsContentScrollPosition
         menu.pager = pager
         menu.onAdd = { [weak self] in
@@ -45,15 +55,52 @@ final class FoodOrderingViewController: UIViewController, NestedPageViewControll
         pager.didMove(toParent: self)
         tabStrip.contentScrollView = pager.containerScrollView
         view.addSubview(cart)
-        cart.backgroundColor = .secondarySystemBackground
+        cart.backgroundColor = UIColor { traits in
+            traits.userInterfaceStyle == .dark
+                ? UIColor(red: 0.19, green: 0.15, blue: 0.10, alpha: 1)
+                : UIColor(red: 1, green: 0.96, blue: 0.89, alpha: 1)
+        }
         cartLabel.font = .systemFont(ofSize: 15, weight: .medium)
         cartLabel.accessibilityIdentifier = "food.cart"
         cart.addSubview(cartLabel)
+        // 在分页内容之上、系统导航栏之下覆盖完整顶部，不依赖系统栏的背景形状。
+        navigationBackground.backgroundColor = .systemBackground
+        navigationBackground.alpha = 0
+        navigationBackground.isUserInteractionEnabled = false
+        navigationBackground.accessibilityIdentifier = "food.navigationBackground"
+        view.addSubview(navigationBackground)
+        pager.view.translatesAutoresizingMaskIntoConstraints = false
+        cart.translatesAutoresizingMaskIntoConstraints = false
+        cartLabel.translatesAutoresizingMaskIntoConstraints = false
+        navigationBackground.translatesAutoresizingMaskIntoConstraints = false
+        let safeArea = view.safeAreaLayoutGuide
+        NSLayoutConstraint.activate([
+            // 封面延伸到屏幕顶部，列表左右和购物车文字仍遵守安全区。
+            pager.view.topAnchor.constraint(equalTo: view.topAnchor),
+            pager.view.leadingAnchor.constraint(equalTo: safeArea.leadingAnchor),
+            pager.view.trailingAnchor.constraint(equalTo: safeArea.trailingAnchor),
+            pager.view.bottomAnchor.constraint(equalTo: cart.topAnchor),
+            // 背景铺满底部和两侧安全区，58 点内容区仍位于底部安全区之上。
+            cart.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            cart.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            cart.topAnchor.constraint(equalTo: safeArea.bottomAnchor, constant: -58),
+            cart.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            cartLabel.topAnchor.constraint(equalTo: cart.safeAreaLayoutGuide.topAnchor),
+            cartLabel.leadingAnchor.constraint(equalTo: cart.safeAreaLayoutGuide.leadingAnchor, constant: 20),
+            cartLabel.trailingAnchor.constraint(equalTo: cart.safeAreaLayoutGuide.trailingAnchor, constant: -20),
+            cartLabel.bottomAnchor.constraint(equalTo: cart.safeAreaLayoutGuide.bottomAnchor),
+            // 背景必须覆盖屏幕顶边和两侧，不能约束到 safeArea，否则外屏仍会露出封面。
+            navigationBackground.topAnchor.constraint(equalTo: view.topAnchor),
+            navigationBackground.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            navigationBackground.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            navigationBackgroundHeight
+        ])
         updateCart()
     }
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        navigationController?.setNavigationBarHidden(false, animated: animated)
         tabStrip.contentScrollView = pager.containerScrollView
     }
 
@@ -71,16 +118,30 @@ final class FoodOrderingViewController: UIViewController, NestedPageViewControll
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        let top = view.safeAreaInsets.top
-        let bottom = view.bounds.height - view.safeAreaInsets.bottom - 58
-        cart.frame = CGRect(x: 0, y: bottom, width: view.bounds.width, height: view.bounds.height - bottom)
-        cartLabel.frame = CGRect(x: 20, y: 0, width: view.bounds.width - 40, height: 58)
-        pager.view.frame = CGRect(x: 0, y: top, width: view.bounds.width, height: max(0, bottom - top))
-        if lastPagerSize != pager.view.bounds.size {
+        let navigationBottom: CGFloat
+        if let navigationBar = navigationController?.navigationBar {
+            navigationBottom = max(0, navigationBar.convert(navigationBar.bounds, to: pager.view).maxY)
+        } else {
+            navigationBottom = view.safeAreaInsets.top
+        }
+        cover.topContentInset = navigationBottom
+        navigationBackgroundHeight.constant = navigationBottom
+        if lastPagerSize != pager.view.bounds.size || pager.stickyOffset != navigationBottom {
             lastPagerSize = pager.view.bounds.size
+            pager.stickyOffset = navigationBottom
             if pager.viewController(at: 0) != nil { pager.updateLayouts() }
         }
         synchronizeHeader()
+    }
+
+    private func setupNavigationBar() {
+        let appearance = UINavigationBarAppearance()
+        appearance.configureWithTransparentBackground()
+        // 系统栏始终透明，只由页面背景层驱动渐变，避免两层半透明颜色叠加。
+        navigationItem.standardAppearance = appearance
+        navigationItem.scrollEdgeAppearance = appearance
+        navigationItem.compactAppearance = appearance
+        navigationItem.compactScrollEdgeAppearance = appearance
     }
 
     private func updateCart() {
@@ -107,7 +168,10 @@ final class FoodOrderingViewController: UIViewController, NestedPageViewControll
         // 使用实际坐标，不依赖 isSticked 的历史回报语义；切页和回弹也走相同入口。
         let bottom = tabStrip.convert(tabStrip.bounds, to: menu.view).maxY
         menu.updateSharedHeader(visibleHeight: bottom)
-        tabStrip.showsBackToTop = bottom <= FoodMenuViewController.tabHeight + 0.5
+        let pinnedHeight = pager.stickyOffset + FoodMenuViewController.tabHeight
+        tabStrip.showsBackToTop = bottom <= pinnedHeight + 0.5
+        let collapseDistance = max(1, FoodMenuViewController.coverHeight - pager.stickyOffset)
+        navigationBackground.alpha = min(max((pager.headerHeight - bottom) / collapseDistance, 0), 1)
     }
 
     func numberOfViewControllers(in pageViewController: NestedPageViewController) -> Int { 3 }
@@ -156,10 +220,19 @@ private final class FoodInfoViewController: UIViewController, NestedPageScrollab
         super.viewDidLoad()
         table.dataSource = self
         table.rowHeight = 76
-        table.frame = view.bounds
-        table.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        table.translatesAutoresizingMaskIntoConstraints = false
         table.accessibilityIdentifier = isReviews ? "food.reviews" : "food.merchant"
+        if #available(iOS 26.0, *) {
+            table.topEdgeEffect.isHidden = true
+        }
         view.addSubview(table)
+        NSLayoutConstraint.activate([
+            // 共享封面挂在当前子列表上，不能再为导航栏预留一遍顶部安全区。
+            table.topAnchor.constraint(equalTo: view.topAnchor),
+            table.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
+            table.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor),
+            table.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor)
+        ])
     }
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int { isReviews ? 24 : 4 }
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {

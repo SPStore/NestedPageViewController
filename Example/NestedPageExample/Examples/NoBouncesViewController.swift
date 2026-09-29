@@ -28,19 +28,13 @@ class NoBouncesViewController: NestedPageViewController {
         setupNestedPageViewController()
     }
     
-    override func viewDidLayoutSubviews() {
-        let safeTop = view.safeAreaInsets.top
-        containerInsets = UIEdgeInsets(top: safeTop, left: 0, bottom: 0, right: 0)
-        
-        // 由于本示例是采用继承的方式， 需要在super之前设置containerInsets，因为NestedPageViewController所有的布局都是在viewDidLayoutSubviews完成的，如果先super，再设置containerInsets内部不再更新布局。
-        super.viewDidLayoutSubviews()
-    }
-    
     // MARK: - Setup
 
     private func setupNestedPageViewController() {
         
         dataSource = self
+        // 示例入口的宿主已约束到安全区；单独使用本控制器时仍启用组件的安全区适配。
+        automaticallyAdjustsContainerInsets = true
         
         bounces = false
                         

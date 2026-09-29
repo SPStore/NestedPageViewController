@@ -1,5 +1,86 @@
 import XCTest
 
+final class HeaderZoomUITests: XCTestCase {
+    func testSystemNavigationBarWithZoomAndReturn() {
+        continueAfterFailure = false
+        XCUIDevice.shared.orientation = .portrait
+        let app = XCUIApplication()
+        app.launch()
+        app.cells.containing(.staticText, identifier: "头部缩放 + 导航栏隐藏（常见）").firstMatch.tap()
+        let back = app.buttons["BackButton"].firstMatch
+        XCTAssertTrue(back.waitForExistence(timeout: 5))
+        XCTAssertTrue(back.isHittable)
+        capture(app, name: "系统导航栏-封面展开")
+
+        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.45, dy: 0.70))
+        start.press(forDuration: 0.05, thenDragTo: start.withOffset(CGVector(dx: 0, dy: -70)),
+                    withVelocity: 100, thenHoldForDuration: 0.2)
+        capture(app, name: "系统导航栏-渐显过程")
+        start.press(forDuration: 0.05, thenDragTo: start.withOffset(CGVector(dx: 0, dy: -250)),
+                    withVelocity: 150, thenHoldForDuration: 0.2)
+        XCTAssertTrue(back.isHittable)
+        capture(app, name: "系统导航栏-标签吸顶")
+
+        let pullStart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.45, dy: 0.30))
+        pullStart.press(forDuration: 0.05, thenDragTo: pullStart.withOffset(CGVector(dx: 0, dy: 430)),
+                        withVelocity: 180, thenHoldForDuration: 0.2)
+        XCTAssertTrue(back.isHittable)
+        capture(app, name: "系统导航栏-下拉恢复")
+        back.tap()
+        XCTAssertTrue(app.navigationBars["示例列表"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["设置"].firstMatch.isHittable)
+        capture(app, name: "系统导航栏-返回首页")
+    }
+
+    private func capture(_ app: XCUIApplication, name: String) {
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+}
+
+/// 检查真实入口的横竖屏 Tab 展示，以及 Push / Pop 后恢复；也可在折叠屏模拟器运行。
+final class TabBarUITests: XCTestCase {
+    func testTabsRemainUsableAcrossOrientationAndNavigation() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        defer { XCUIDevice.shared.orientation = .portrait }
+        for orientation: UIDeviceOrientation in [.portrait, .landscapeLeft] {
+            app.terminate()
+            XCUIDevice.shared.orientation = orientation
+            app.launch()
+            let settings = app.buttons["设置"].firstMatch
+            let examples = app.buttons["示例"].firstMatch
+            waitUntilHittable(settings)
+            waitUntilHittable(examples)
+            settings.tap()
+            XCTAssertTrue(app.cells.containing(.staticText, identifier: "keepsContentScrollPosition").firstMatch.waitForExistence(timeout: 5))
+            examples.tap()
+            app.cells.containing(.staticText, identifier: "默认").firstMatch.tap()
+            let hierarchy = XCTAttachment(string: app.debugDescription)
+            hierarchy.name = "默认示例-导航层级-\(orientation.rawValue)"
+            hierarchy.lifetime = .keepAlways
+            add(hierarchy)
+            // 折叠屏的返回按钮可能位于系统竖栏，而不在 navigationBars 下。
+            let back = app.buttons.matching(NSPredicate(format: "identifier == 'BackButton' OR label == 'Back' OR label == '返回'")).firstMatch
+            waitUntilHittable(back)
+            back.tap()
+            waitUntilHittable(settings)
+            waitUntilHittable(examples)
+            let screenshot = XCTAttachment(screenshot: app.screenshot())
+            screenshot.name = "TabBar-返回首页-\(orientation.rawValue)"
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
+        }
+    }
+
+    private func waitUntilHittable(_ element: XCUIElement) {
+        let ready = expectation(for: NSPredicate(format: "exists == true AND hittable == true"), evaluatedWith: element)
+        wait(for: [ready], timeout: 10)
+    }
+}
+
 /// 真正向模拟器发送横拖 / 纵拖，补充单元测试无法覆盖的手势识别链路。
 final class FoodCarouselUITests: XCTestCase {
     private var app: XCUIApplication!
@@ -21,6 +102,33 @@ final class FoodCarouselUITests: XCTestCase {
             add(hierarchy)
         }
         app = nil
+    }
+
+    func testFullBleedFoodCoverWithSystemNavigationBar() {
+        let slogan = app.staticTexts["food.slogan"]
+        let order = foodTab(at: 0)
+        XCTAssertTrue(slogan.isHittable)
+        XCTAssertFalse(app.navigationBars.staticTexts["外卖点餐双列表"].exists)
+        let expandedTabY = order.frame.minY
+        XCTAssertEqual(expandedTabY, 380, accuracy: 2)
+        XCTAssertTrue(app.buttons["BackButton"].firstMatch.isHittable)
+        capture("点餐封面-屏幕顶部展开-无导航标题")
+        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.78, dy: 0.82))
+        start.press(forDuration: 0.05, thenDragTo: start.withOffset(CGVector(dx: 0, dy: -100)),
+                    withVelocity: 160, thenHoldForDuration: 0.2)
+        capture("点餐封面-导航栏背景渐显")
+        app.collectionViews["food.products"].swipeUp()
+        XCTAssertEqual(order.value as? String, "返回顶部")
+        XCTAssertLessThan(order.frame.minY, expandedTabY)
+        XCTAssertFalse(app.navigationBars.staticTexts["外卖点餐双列表"].exists)
+        capture("点餐封面-导航栏下方吸顶")
+        order.tap()
+        waitForExpansion(of: app.scrollViews["food.sharedCarousel"], bottom: expandedTabY + 44 + 144)
+        XCTAssertTrue(slogan.isHittable)
+        XCTAssertEqual(order.frame.minY, expandedTabY, accuracy: 2)
+        capture("点餐封面-点击点餐恢复透明导航栏")
+        app.buttons["BackButton"].firstMatch.tap()
+        XCTAssertTrue(app.navigationBars["示例列表"].waitForExistence(timeout: 5))
     }
 
     func testSharedCarouselHorizontalDragDoesNotSwitchTabAndVerticalDragScrollsPage() {
@@ -116,7 +224,7 @@ final class FoodCarouselUITests: XCTestCase {
         // 轮播优先于分页，但不能吞掉导航控制器的系统边缘返回。
         let edge = origin.withOffset(CGVector(dx: 2, dy: tab.frame.maxY + 40))
         edge.press(forDuration: 0.05, thenDragTo: edge.withOffset(CGVector(dx: app.frame.width * 0.8, dy: 0)), withVelocity: 400, thenHoldForDuration: 0.2)
-        XCTAssertFalse(app.navigationBars["外卖点餐双列表"].exists)
+        XCTAssertTrue(app.navigationBars["示例列表"].waitForExistence(timeout: 5))
     }
 
     private func assertMenuRemainsVisible(file: StaticString = #filePath, line: UInt = #line) {
@@ -186,7 +294,9 @@ final class FoodCarouselUITests: XCTestCase {
         XCTAssertEqual(review.value as? String, "1710 条评价")
         XCTAssertLessThan(merchant.frame.maxX, app.frame.width * 0.7)
         XCTAssertEqual(carousel.frame.height, 144, accuracy: 1)
+        let carouselHeight = carousel.frame.height
         let expandedCarouselBottom = carousel.frame.maxY
+        let expandedTabY = order.frame.minY
         XCTAssertNotEqual(order.value as? String, "返回顶部")
         let expandedReviewX = review.frame.minX
         XCTAssertEqual(order.frame.width, 36, accuracy: 1)
@@ -210,6 +320,7 @@ final class FoodCarouselUITests: XCTestCase {
             let categoryReadingY = category.frame.minY - order.frame.maxY
             if fromReviews { review.tap() }
             XCTAssertEqual(order.value as? String, "返回顶部")
+            let sharedCollapseDistance = expandedTabY - order.frame.minY + carouselHeight
             XCTAssertEqual(order.frame.width, 54, accuracy: 1)
             XCTAssertEqual(review.frame.minX, expandedReviewX + 18, accuracy: 1)
             capture("吸顶点餐箭头-\(fromReviews ? "评价页" : "点餐页")")
@@ -227,7 +338,7 @@ final class FoodCarouselUITests: XCTestCase {
             assertMenuRemainsVisible()
             XCTAssertEqual(product.frame.minY - carousel.frame.maxY, productReadingY, accuracy: 2)
             let collapseStart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.10, dy: 0.78))
-            collapseStart.press(forDuration: 0.05, thenDragTo: collapseStart.withOffset(CGVector(dx: 0, dy: -360)),
+            collapseStart.press(forDuration: 0.05, thenDragTo: collapseStart.withOffset(CGVector(dx: 0, dy: -sharedCollapseDistance - 15)),
                                 withVelocity: 180, thenHoldForDuration: 0.2)
             XCTAssertFalse(carousel.isHittable)
             XCTAssertEqual(product.frame.minY - order.frame.maxY, productReadingY, accuracy: 2)
@@ -248,7 +359,7 @@ final class FoodCarouselUITests: XCTestCase {
 
     private func enableKeepsContentScrollPosition() {
         // 配置只保存在内存中：从设置页开启，再重新进入示例，验证实际接入路径。
-        app.navigationBars["外卖点餐双列表"].buttons.element(boundBy: 0).tap()
+        app.buttons["BackButton"].firstMatch.tap()
         app.tabBars.buttons["设置"].tap()
         let toggle = app.cells.containing(.staticText, identifier: "keepsContentScrollPosition").switches.firstMatch
         XCTAssertTrue(toggle.waitForExistence(timeout: 3))

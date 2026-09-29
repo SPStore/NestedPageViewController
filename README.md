@@ -115,6 +115,7 @@ class YourViewController: UIViewController {
     // MARK: - Properties
     
     private var nestedPageViewController = NestedPageViewController()
+    private var lastPageSize = CGSize.zero
     private var coverView = YourHeaderView()
     private var customTabStrip = YourCustomTabStrip()
     
@@ -139,20 +140,25 @@ class YourViewController: UIViewController {
         // 添加为子控制器
         addChild(nestedPageViewController)
         view.addSubview(nestedPageViewController.view)
+        nestedPageViewController.view.translatesAutoresizingMaskIntoConstraints = false
+        let safeArea = view.safeAreaLayoutGuide
+        NSLayoutConstraint.activate([
+            nestedPageViewController.view.topAnchor.constraint(equalTo: safeArea.topAnchor),
+            nestedPageViewController.view.leadingAnchor.constraint(equalTo: safeArea.leadingAnchor),
+            nestedPageViewController.view.trailingAnchor.constraint(equalTo: safeArea.trailingAnchor),
+            nestedPageViewController.view.bottomAnchor.constraint(equalTo: safeArea.bottomAnchor)
+        ])
         nestedPageViewController.didMove(toParent: self)
     }
-    
+
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        
-        // 更新NestedPageViewController的frame
-        let safeAreaTop = view.safeAreaInsets.top
-        nestedPageViewController.view.frame = CGRect(
-            x: 0,
-            y: safeAreaTop,
-            width: view.bounds.width,
-            height: view.bounds.height - safeAreaTop
-        )
+        let size = nestedPageViewController.view.bounds.size
+        guard size != lastPageSize else { return }
+        lastPageSize = size
+        if nestedPageViewController.viewController(at: nestedPageViewController.currentIndex) != nil {
+            nestedPageViewController.updateLayouts()
+        }
     }
 }
 
@@ -229,6 +235,8 @@ extension YourViewController: NestedPageViewControllerDelegate {
 
 ### 方式二：继承方式
 
+直接继承时根视图由系统管理，可启用组件的上下安全区适配。Demo 中的两个继承型示例另外通过 `SafeAreaExampleHostViewController` 将组件视图四边约束到宿主的 `safeAreaLayoutGuide`，同时避开横屏左右安全区；此时子控制器内部不会重复扣除安全距离。
+
 ```swift
 import UIKit
 import NestedPageViewController
@@ -252,19 +260,12 @@ class YourNestedPageViewController: NestedPageViewController {
         setupNestedPageViewController()
     }
     
-    override func viewDidLayoutSubviews() {
-        let safeTop = view.safeAreaInsets.top
-        containerInsets = UIEdgeInsets(top: safeTop, left: 0, bottom: 0, right: 0)
-        
-        // 采用继承方式时，需要在super之前设置containerInsets
-        super.viewDidLayoutSubviews()
-    }
-    
     // MARK: - Setup
     
     private func setupNestedPageViewController() {
         // 设置数据源
         dataSource = self
+        automaticallyAdjustsContainerInsets = true
         
         // 设置代理（继承方式下，可以直接重写代理方法）
         delegate = self

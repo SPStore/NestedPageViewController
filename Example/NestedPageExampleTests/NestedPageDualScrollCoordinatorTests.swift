@@ -6,6 +6,30 @@ import NestedPageViewController
 /// 不使用 Food 页面、商品布局或轮播子类，验证业务协调器可独立复用。
 @MainActor
 final class NestedPageDualScrollCoordinatorTests: XCTestCase {
+    func testNavigationHeightChangesKeepSharedCollapseAndExpansionAligned() {
+        let f = DualScrollFixture()
+        f.pager.keepsContentScrollPosition = true
+        for navigationHeight: CGFloat in [80, 30, 0] {
+            f.pager.stickyOffset = navigationHeight
+            f.page.coordinator.updatePinnedHeaderHeight(37 + navigationHeight)
+            f.pager.updateLayouts()
+            f.pager.scrollToTop(animated: false)
+            f.synchronizeHeader()
+            XCTAssertEqual(f.page.coordinator.visibleSharedHeight, 280, accuracy: 0.1)
+            // 短副列表也必须能完整收起共享区，并停在导航栏和 Tab 之后。
+            f.moveSecondary(by: 243 - navigationHeight)
+            XCTAssertEqual(f.page.coordinator.visibleSharedHeight, 37 + navigationHeight, accuracy: 0.1)
+            XCTAssertEqual(f.tab.convert(f.tab.bounds, to: f.page.view).maxY, 37 + navigationHeight, accuracy: 0.1)
+            XCTAssertEqual(f.page.primary.contentOffset.y, 46 - navigationHeight, accuracy: 0.1)
+            XCTAssertEqual(f.secondaryDepth, 0, accuracy: 0.1)
+            f.page.coordinator.expandSharedHeader()
+            f.synchronizeHeader()
+            XCTAssertEqual(f.page.coordinator.visibleSharedHeight, 280, accuracy: 0.1)
+            XCTAssertEqual(f.page.primary.contentOffset.y, -197, accuracy: 0.1)
+            XCTAssertEqual(f.secondaryDepth, 0, accuracy: 0.1)
+        }
+    }
+
     func testTouchWithoutDraggingDoesNotCancelExpansionWithContentAtTop() {
         let f = DualScrollFixture()
         f.page.primary.contentOffset.y = 83 - 37

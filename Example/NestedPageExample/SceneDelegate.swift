@@ -22,11 +22,10 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         if ProcessInfo.processInfo.arguments.contains("-food-demo"),
            let tabBarController = window?.rootViewController as? TabBarController {
             tabBarController.loadViewIfNeeded()
-            if let navigationController = tabBarController.viewControllers?.first as? NavigationController {
-                let demo = FoodOrderingViewController()
-                demo.hidesBottomBarWhenPushed = true
-                navigationController.pushViewController(demo, animated: false)
-            }
+            // UITab 使用独立的配置入口，不再通过旧 viewControllers 数组查找导航栈。
+            let demo = FoodOrderingViewController()
+            demo.hidesBottomBarWhenPushed = true
+            tabBarController.exampleNavigationController.pushViewController(demo, animated: false)
         }
         #endif
     }
