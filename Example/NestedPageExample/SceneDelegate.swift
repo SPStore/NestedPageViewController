@@ -17,6 +17,18 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // If using a storyboard, the `window` property will automatically be initialized and attached to the scene.
         // This delegate does not imply the connecting scene or session are new (see `application:configurationForConnectingSceneSession` instead).
         guard let _ = (scene as? UIWindowScene) else { return }
+        #if DEBUG
+        // 直达示例仍保留原导航栈，以便通过返回按钮或边缘手势回到示例列表。
+        if ProcessInfo.processInfo.arguments.contains("-food-demo"),
+           let tabBarController = window?.rootViewController as? TabBarController {
+            tabBarController.loadViewIfNeeded()
+            if let navigationController = tabBarController.viewControllers?.first as? NavigationController {
+                let demo = FoodOrderingViewController()
+                demo.hidesBottomBarWhenPushed = true
+                navigationController.pushViewController(demo, animated: false)
+            }
+        }
+        #endif
     }
 
     func sceneDidDisconnect(_ scene: UIScene) {
@@ -49,4 +61,3 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
 
 }
-
