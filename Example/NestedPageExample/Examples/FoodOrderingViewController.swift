@@ -1,17 +1,23 @@
 import UIKit
 import NestedPageViewController
+import JXCategoryView
 
 /// 双列表实验：共享店铺头部 / 全宽轮播，右侧另有独立轮播，分类保留原生拖拽和减速。
-/// 本示例使用固定配置，避免设置页中的 headerAlwaysFixed 等选项改变实验条件。
+/// 进入页面时读取设置页的位置保留开关，其他配置保持固定，避免改变双列表的实验条件。
 final class FoodOrderingViewController: UIViewController, NestedPageViewControllerDataSource, NestedPageViewControllerDelegate {
     private let pager = NestedPageViewController()
-    private let cover = UIView()
-    private let tabStrip = NestedPageTabStripView(titles: ["点餐", "评价", "商家"])
+    private let cover = FoodShopCoverView()
+    private let tabStrip = FoodOrderingTabStrip()
     private let menu = FoodMenuViewController()
     private let cartLabel = UILabel()
     private let cart = UIView()
     private var lastPagerSize = CGSize.zero
     private var itemCount = 0
+    private var returnsToTopAfterTabClick = false
+
+    deinit {
+        tabStrip.contentScrollView = nil
+    }
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -22,41 +28,12 @@ final class FoodOrderingViewController: UIViewController, NestedPageViewControll
             UIBarButtonItem(title: "短分类", style: .plain, target: self, action: #selector(toggleCategories))
         ]
 
-        let name = UILabel()
-        name.text = "巷口小馆 · 现做家常菜"
-        name.font = .boldSystemFont(ofSize: 23)
-        name.accessibilityIdentifier = "food.shop"
-        let details = UILabel()
-        details.text = "4.9 分  ·  约 30 分钟  ·  配送费 ¥2\n\n热饭热菜，认真做好每一餐"
-        details.numberOfLines = 0
-        details.font = .systemFont(ofSize: 14)
-        details.textColor = .secondaryLabel
-        let tip = UILabel()
-        tip.text = "上滑任意一栏：收起店铺 → 收起大轮播 → 独立滚动"
-        tip.numberOfLines = 2
-        tip.font = .systemFont(ofSize: 13)
-        let stack = UIStackView(arrangedSubviews: [name, details, tip])
-        stack.axis = .vertical
-        stack.spacing = 16
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        cover.backgroundColor = .secondarySystemBackground
-        cover.addSubview(stack)
-        NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: cover.leadingAnchor, constant: 20),
-            stack.trailingAnchor.constraint(equalTo: cover.trailingAnchor, constant: -20),
-            stack.centerYAnchor.constraint(equalTo: cover.centerYAnchor)
-        ])
-        var configuration = tabStrip.configuration
-        configuration.titleColor = .secondaryLabel
-        configuration.titleSelectedColor = .label
-        configuration.backgroundColor = .systemBackground
-        configuration.indicatorColor = .systemOrange
-        tabStrip.configuration = configuration
+        tabStrip.delegate = self
 
         pager.dataSource = self
         pager.delegate = self
         pager.headerBounces = false
-        pager.keepsContentScrollPosition = true
+        pager.keepsContentScrollPosition = NestedPageConfig.shared.keepsContentScrollPosition
         menu.pager = pager
         menu.onAdd = { [weak self] in
             guard let self else { return }
@@ -66,13 +43,30 @@ final class FoodOrderingViewController: UIViewController, NestedPageViewControll
         addChild(pager)
         view.addSubview(pager.view)
         pager.didMove(toParent: self)
-        tabStrip.linkedScrollView = pager.containerScrollView
+        tabStrip.contentScrollView = pager.containerScrollView
         view.addSubview(cart)
         cart.backgroundColor = .secondarySystemBackground
         cartLabel.font = .systemFont(ofSize: 15, weight: .medium)
         cartLabel.accessibilityIdentifier = "food.cart"
         cart.addSubview(cartLabel)
         updateCart()
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        tabStrip.contentScrollView = pager.containerScrollView
+    }
+
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        // 第三方强持有分页容器，而 Tab 挂在其子树内；离屏时主动拆开引用环和 KVO。
+        // 再次显示（包括取消返回手势）时重新绑定，不丢失当前选中页。
+        tabStrip.contentScrollView = nil
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        menu.stopMotion()
     }
 
     override func viewDidLayoutSubviews() {
@@ -113,6 +107,7 @@ final class FoodOrderingViewController: UIViewController, NestedPageViewControll
         // 使用实际坐标，不依赖 isSticked 的历史回报语义；切页和回弹也走相同入口。
         let bottom = tabStrip.convert(tabStrip.bounds, to: menu.view).maxY
         menu.updateSharedHeader(visibleHeight: bottom)
+        tabStrip.showsBackToTop = bottom <= FoodMenuViewController.tabHeight + 0.5
     }
 
     func numberOfViewControllers(in pageViewController: NestedPageViewController) -> Int { 3 }
@@ -129,6 +124,22 @@ final class FoodOrderingViewController: UIViewController, NestedPageViewControll
     func pageViewController(_ pageViewController: NestedPageViewController, didScrollToPageAt index: Int) {
         menu.stopMotion()
         synchronizeHeader()
+    }
+}
+
+extension FoodOrderingViewController: JXCategoryViewDelegate {
+    func categoryView(_ categoryView: JXCategoryBaseView!, canClickItemAt index: Int) -> Bool {
+        // 保存点击前的吸顶状态：第三方切页后，核心可能已调整共享头部位置。
+        returnsToTopAfterTabClick = index == 0 && tabStrip.showsBackToTop
+        return true
+    }
+
+    func categoryView(_ categoryView: JXCategoryBaseView!, didClickSelectedItemAt index: Int) {
+        let shouldReturnToTop = returnsToTopAfterTabClick
+        returnsToTopAfterTabClick = false
+        guard index == 0, shouldReturnToTop else { return }
+        // JX 已切到点餐页；只展开共享区域，不重置左右列表的阅读位置。
+        menu.expandSharedHeader(animated: true)
     }
 }
 

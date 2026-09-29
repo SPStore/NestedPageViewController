@@ -122,6 +122,33 @@ class NestedPageScrollCoordinator {
         isHorizontalScrolling = false
         isSticked = pinY <= -headerManager.coverHeight
     }
+
+    func setHeaderExpansionProgress(_ progress: CGFloat) {
+        guard progress.isFinite, let viewController, let headerManager,
+              !viewController.isUpdatingLayouts, !isHorizontalScrolling,
+              let current = childManager?.currentContentScrollView else { return }
+        // 偏移补偿和头部挂载是同一个事务，不能让中间 offset 再次驱动吸顶逻辑。
+        do {
+            viewController.isUpdatingLayouts = true
+            defer { viewController.isUpdatingLayouts = false }
+            // stopScrolling 本身也可能发布 offset，须一并纳入事务。
+            current.stopScrolling()
+            guard let position = captureLayoutPosition() else { return }
+            let fraction = min(1, max(0, progress))
+            let maximumCollapse = max(0, headerManager.coverHeight - viewController.stickyOffset)
+            var collapsed = maximumCollapse * (1 - fraction)
+            if fraction > 0 && fraction < 1 {
+                // 列表 offset 会按屏幕像素对齐，头部中间态也使用相同粒度，避免逐帧补偿累积误差。
+                let scale = max(1, viewController.view.traitCollection.displayScale)
+                collapsed = min(maximumCollapse, (collapsed * scale).rounded() / scale)
+            }
+            restoreLayoutPosition(LayoutPosition(
+                collapsedHeight: collapsed, visibleHeaderHeight: position.visibleHeaderHeight,
+                wasPinned: false, offsets: position.offsets
+            ))
+        }
+        notifyScrollDelegate(current)
+    }
     
     // MARK: - Vertical Scrolling Management
     
@@ -167,11 +194,16 @@ class NestedPageScrollCoordinator {
         
         // 保留既有公开状态语义，不等同于带 stickyOffset 的视觉吸顶边界。
         isSticked = headerManager.pin.frame.minY <= -headerManager.coverHeight
+        notifyScrollDelegate(scrollView)
+
+        lastContentOffsetY = currentOffsetY
+    }
+
+    private func notifyScrollDelegate(_ scrollView: UIScrollView) {
+        guard let viewController, let headerManager, let childManager else { return }
         let sy = childManager.currentContentScrollView?.convert(childManager.currentContentScrollView?.bounds ?? .zero, to: viewController.containerView).minY ?? 0.0
         let cy = headerManager.headerContentView.convert(headerManager.headerContentView.bounds, to: viewController.containerView).minY
         viewController.delegate?.pageViewController(viewController, contentScrollViewDidScroll: scrollView, headerOffset: -cy + sy, isSticked: isSticked)
-                        
-        lastContentOffsetY = currentOffsetY
     }
     
     private func handlePartialStickScrolling(scrollView: UIScrollView, currentOffsetY: CGFloat) {

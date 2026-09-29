@@ -7,6 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+        F00D00000000000000000080 /* FoodOrderingTabStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00D00000000000000000081; };
+        F00D00000000000000000082 /* FoodShopCoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00D00000000000000000083; };
+        F00D00000000000000000060 /* NestedPageDualScrollCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00D00000000000000000061; };
+        F00D00000000000000000062 /* NestedPageDualScrollView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00D00000000000000000063; };
+        F00D00000000000000000064 /* NestedPagePagingGestureGuard.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00D00000000000000000065; };
+        F00D00000000000000000070 /* NestedPageDualScrollCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00D00000000000000000071; };
         F00D00000000000000000040 /* FoodCarouselUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00D00000000000000000041; };
         F00D00000000000000000030 /* FoodCarouselView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00D00000000000000000031; };
         F00D00000000000000000010 /* FoodOrderingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00D00000000000000000011; };
@@ -57,6 +63,12 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+        F00D00000000000000000081 /* FoodOrderingTabStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodOrderingTabStrip.swift; sourceTree = "<group>"; };
+        F00D00000000000000000083 /* FoodShopCoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodShopCoverView.swift; sourceTree = "<group>"; };
+        F00D00000000000000000061 /* NestedPageDualScrollCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NestedPageDualScrollCoordinator.swift; sourceTree = "<group>"; };
+        F00D00000000000000000063 /* NestedPageDualScrollView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NestedPageDualScrollView.swift; sourceTree = "<group>"; };
+        F00D00000000000000000065 /* NestedPagePagingGestureGuard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NestedPagePagingGestureGuard.swift; sourceTree = "<group>"; };
+        F00D00000000000000000071 /* NestedPageDualScrollCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NestedPageDualScrollCoordinatorTests.swift; sourceTree = "<group>"; };
         F00D00000000000000000041 /* FoodCarouselUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodCarouselUITests.swift; sourceTree = "<group>"; };
         F00D00000000000000000042 /* NestedPageExampleUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = NestedPageExampleUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
         F00D00000000000000000031 /* FoodCarouselView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodCarouselView.swift; sourceTree = "<group>"; };
@@ -126,8 +138,10 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+        F00D00000000000000000066 /* BusinessComponents */ = {isa = PBXGroup; children = (F00D00000000000000000067,); path = BusinessComponents; sourceTree = "<group>"; };
+        F00D00000000000000000067 /* DualScroll */ = {isa = PBXGroup; children = (F00D00000000000000000061, F00D00000000000000000063, F00D00000000000000000065,); path = DualScroll; sourceTree = "<group>"; };
         F00D00000000000000000043 /* NestedPageExampleUITests */ = {isa = PBXGroup; children = (F00D00000000000000000041,); path = NestedPageExampleUITests; sourceTree = "<group>"; };
-        F00D00000000000000000013 /* NestedPageExampleTests */ = {isa = PBXGroup; children = (F00D00000000000000000011,); path = NestedPageExampleTests; sourceTree = "<group>"; };
+        F00D00000000000000000013 /* NestedPageExampleTests */ = {isa = PBXGroup; children = (F00D00000000000000000011, F00D00000000000000000071,); path = NestedPageExampleTests; sourceTree = "<group>"; };
 		B6E249CCA47C3DE1E32DC6E8 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
@@ -182,6 +196,8 @@
 				BB553D772E63732B00798037 /* ChildViewControllers */,
 				BB553D7B2E63732B00798037 /* StandardViewController.swift */,
                 F00D00000000000000000002 /* FoodOrderingViewController.swift */,
+                F00D00000000000000000081 /* FoodOrderingTabStrip.swift */,
+                F00D00000000000000000083 /* FoodShopCoverView.swift */,
 				BB553D782E63732B00798037 /* HeaderZoomViewController.swift */,
 				BB553D792E63732B00798037 /* PartialRefreshViewController.swift */,
 				BB553DB12E63796000798037 /* GlobalRefreshViewController.swift */,
@@ -206,6 +222,7 @@
 		BB553D932E63732B00798037 /* NestedPageExample */ = {
 			isa = PBXGroup;
 			children = (
+                F00D00000000000000000066 /* BusinessComponents */,
 				BB553D7C2E63732B00798037 /* Examples */,
 				BBE154A22E6B056B003815C5 /* Examples-OC */,
 				BB553D862E63732B00798037 /* AppDelegate.swift */,
@@ -392,7 +409,7 @@
 
 /* Begin PBXSourcesBuildPhase section */
         F00D00000000000000000046 /* UI Test Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (F00D00000000000000000040,); runOnlyForDeploymentPostprocessing = 0; };
-        F00D00000000000000000016 /* Test Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (F00D00000000000000000010,); runOnlyForDeploymentPostprocessing = 0; };
+        F00D00000000000000000016 /* Test Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (F00D00000000000000000010, F00D00000000000000000070,); runOnlyForDeploymentPostprocessing = 0; };
 		BB553D142E6372E900798037 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -400,8 +417,13 @@
 				BBE154A62E6B05B1003815C5 /* ObjcExmpleViewController.m in Sources */,
 				BB553D942E63732B00798037 /* FavoritesViewController.swift in Sources */,
                 F00D00000000000000000001 /* FoodOrderingViewController.swift in Sources */,
+                F00D00000000000000000080 /* FoodOrderingTabStrip.swift in Sources */,
+                F00D00000000000000000082 /* FoodShopCoverView.swift in Sources */,
                 F00D00000000000000000003 /* FoodMenuViewController.swift in Sources */,
                 F00D00000000000000000030 /* FoodCarouselView.swift in Sources */,
+                F00D00000000000000000060 /* NestedPageDualScrollCoordinator.swift in Sources */,
+                F00D00000000000000000062 /* NestedPageDualScrollView.swift in Sources */,
+                F00D00000000000000000064 /* NestedPagePagingGestureGuard.swift in Sources */,
 				BB553D952E63732B00798037 /* LikesViewController.swift in Sources */,
 				BB553D962E63732B00798037 /* MyCollectionView.swift in Sources */,
 				BB9AADA82E8627ED00D202CC /* ChangeHeaderHeightViewController.swift in Sources */,

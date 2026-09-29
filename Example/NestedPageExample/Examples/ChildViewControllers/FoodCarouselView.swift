@@ -6,16 +6,18 @@ final class FoodCarouselView: UIScrollView {
     private let style: Style
     private let cards: [FoodPromoCard]
     private var lastSize = CGSize.zero
-    private let pagingGuard = FoodCarouselPagingGuard(target: nil, action: nil)
 
     init(style: Style) {
         self.style = style
         switch style {
         case .shared:
             cards = [
-                FoodPromoCard(title: "秋日上新", subtitle: "左右列表都能收起这里", symbol: "leaf.fill", color: .systemGreen),
+                FoodPromoCard(title: "秋日上新", subtitle: "应季鲜味\n好好吃饭", symbol: "leaf.fill", color: .systemGreen),
                 FoodPromoCard(title: "招牌热销", subtitle: "现炒好味 · 每日推荐", symbol: "flame.fill", color: .systemOrange),
-                FoodPromoCard(title: "超值双人餐", subtitle: "横滑看看更多推荐", symbol: "fork.knife", color: .systemIndigo)
+                FoodPromoCard(title: "超值双人餐", subtitle: "两个人的\n一桌好菜", symbol: "fork.knife", color: .systemIndigo),
+                FoodPromoCard(title: "暖心煲汤", subtitle: "慢火炖煮\n暖胃暖心", symbol: "mug.fill", color: .systemBrown),
+                FoodPromoCard(title: "清爽时蔬", subtitle: "每日采购\n新鲜现炒", symbol: "carrot.fill", color: .systemTeal),
+                FoodPromoCard(title: "午间好食光", subtitle: "一人食\n也要丰盛", symbol: "sun.max.fill", color: .systemPink)
             ]
         case .products:
             cards = [
@@ -32,15 +34,9 @@ final class FoodCarouselView: UIScrollView {
         isDirectionalLockEnabled = true
         alwaysBounceHorizontal = true
         isPagingEnabled = style == .products
-        decelerationRate = .fast
+        decelerationRate = style == .shared ? .normal : .fast
         let identifier = style == .shared ? "food.sharedCarousel" : "food.productCarousel"
         accessibilityIdentifier = identifier
-        // 独立于轮播的横纵方向判断：只要从轮播内起拖，就不让外层横向分页接手。
-        pagingGuard.name = "food.carouselPagingGuard"
-        pagingGuard.cancelsTouchesInView = false
-        pagingGuard.delaysTouchesBegan = false
-        pagingGuard.delaysTouchesEnded = false
-        addGestureRecognizer(pagingGuard)
         for (index, card) in cards.enumerated() {
             card.accessibilityIdentifier = "\(identifier).card.\(index)"
             addSubview(card)
@@ -48,11 +44,6 @@ final class FoodCarouselView: UIScrollView {
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-
-    func prioritizeScrolling(over pagingScrollView: UIScrollView) {
-        pagingGuard.pagingPan = pagingScrollView.panGestureRecognizer
-        pagingScrollView.panGestureRecognizer.require(toFail: pagingGuard)
-    }
 
     override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
         if gestureRecognizer === panGestureRecognizer {
@@ -68,7 +59,7 @@ final class FoodCarouselView: UIScrollView {
         let page = lastSize.width > 0 ? contentOffset.x / lastSize.width : 0
         lastSize = bounds.size
         let shared = style == .shared
-        let width = shared ? min(240, bounds.width * 0.64) : bounds.width
+        let width = shared ? min(168, bounds.width * 0.43) : bounds.width
         let spacing: CGFloat = shared ? 12 : 0
         for (index, card) in cards.enumerated() {
             card.frame = CGRect(x: spacing + CGFloat(index) * (width + spacing), y: shared ? 12 : 4,
@@ -79,24 +70,6 @@ final class FoodCarouselView: UIScrollView {
         contentOffset = CGPoint(x: max(0, min(x, contentSize.width - bounds.width)), y: 0)
     }
 
-    func stopMotion() {
-        if #available(iOS 17.4, *) { stopScrollingAndZooming() }
-        else { setContentOffset(contentOffset, animated: false) }
-    }
-}
-
-/// 不处理位移，只排除外层横向翻页；与轮播横拖、商品纵拖及系统返回手势并行。
-/// 不能只等待轮播自己的 pan：它在纵向 / 斜向起手时会失败，使外层分页重新获得识别机会。
-private final class FoodCarouselPagingGuard: UIPanGestureRecognizer {
-    weak var pagingPan: UIPanGestureRecognizer?
-
-    override func canPrevent(_ preventedGestureRecognizer: UIGestureRecognizer) -> Bool {
-        preventedGestureRecognizer === pagingPan
-    }
-
-    override func canBePrevented(by preventingGestureRecognizer: UIGestureRecognizer) -> Bool {
-        false
-    }
 }
 
 private final class FoodPromoCard: UIView {

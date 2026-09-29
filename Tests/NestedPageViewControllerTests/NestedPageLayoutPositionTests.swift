@@ -4,6 +4,62 @@ import XCTest
 
 @MainActor
 final class NestedPageLayoutPositionTests: XCTestCase {
+    func testControlledExpansionProgressKeepsReadingPositions() {
+        let f = ScrollBehaviorFixture(contentTop: 32, stickyOffset: 36)
+        f.scroll(to: 600)
+        let depth = f.pages[0].scrollView.contentOffset.y + 80
+        for progress: CGFloat in [0, 0.1, 0.4, 0.7, 1, 0.5, 0, -1, 2] {
+            let clamped = min(1, max(0, progress))
+            f.host.setHeaderExpansionProgress(progress)
+            let scale = max(1, f.host.view.traitCollection.displayScale)
+            let collapse = ((204 - 36) * (1 - clamped) * scale).rounded() / scale
+            XCTAssertEqual(f.headerY, 32 - collapse, accuracy: 0.001)
+            XCTAssertEqual(f.pages[0].scrollView.contentOffset.y + 248 - collapse, depth, accuracy: 0.001)
+        }
+        let offset = f.pages[0].scrollView.contentOffset
+        f.host.setHeaderExpansionProgress(.nan)
+        XCTAssertEqual(f.pages[0].scrollView.contentOffset, offset)
+    }
+
+    func testExplicitExpansionKeepsReadingPositionsAndNotifiesFinalState() {
+        for keepsPosition in [false, true] {
+            let f = ScrollBehaviorFixture(keepsPosition: keepsPosition)
+            f.scroll(to: 600)
+            f.host.scrollToPage(at: 1, animated: false)
+            f.scroll(to: 300)
+            f.host.scrollToPage(at: 0, animated: false)
+            f.events.removeAll()
+            f.host.expandHeader()
+            XCTAssertEqual(f.headerY, 0, accuracy: 0.001)
+            XCTAssertEqual(f.pages.map { $0.scrollView.contentOffset.y }, [396, 96])
+            XCTAssertEqual(f.events.count, 1)
+            XCTAssertEqual(f.events.last?.pageOffsets, [396, 96])
+            XCTAssertEqual(f.events.last?.headerOffset, 0)
+            XCTAssertFalse(f.host.isSticked)
+            f.host.expandHeader()
+            XCTAssertEqual(f.pages.map { $0.scrollView.contentOffset.y }, [396, 96])
+            f.scroll(to: 416)
+            XCTAssertEqual(f.headerY, -20, accuracy: 0.001)
+        }
+    }
+
+    func testExplicitExpansionHandlesOffsetsShortContentAndContinuedScrolling() {
+        for contentTop: CGFloat in [0, 32] {
+            let f = ScrollBehaviorFixture(contentTop: contentTop, stickyOffset: 36)
+            f.pages[1].scrollView.contentSize.height = 100
+            f.scroll(to: 100)
+            let depth = f.pages[0].scrollView.contentOffset.y + 80
+            f.host.expandHeader()
+            XCTAssertEqual(f.headerY, contentTop, accuracy: 0.001)
+            XCTAssertEqual(f.pages[0].scrollView.contentOffset.y + 248, depth, accuracy: 0.001)
+            XCTAssertEqual(f.pages[1].scrollView.contentOffset.y, -248, accuracy: 0.001)
+            f.scroll(to: -248)
+            XCTAssertEqual(f.headerY, contentTop, accuracy: 0.001)
+            f.scroll(to: -228)
+            XCTAssertEqual(f.headerY, contentTop - 20, accuracy: 0.001)
+        }
+    }
+
     func testTopRemainsExpandedWhenHeaderGrows() {
         let fixture = ScrollBehaviorFixture()
         fixture.coverHeight = 304

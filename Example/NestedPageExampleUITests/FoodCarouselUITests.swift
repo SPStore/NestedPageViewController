@@ -102,7 +102,7 @@ final class FoodCarouselUITests: XCTestCase {
         let leftStart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.10, dy: 0.80))
         leftStart.press(forDuration: 0.05, thenDragTo: leftStart.withOffset(CGVector(dx: 0, dy: -300)), withVelocity: 180, thenHoldForDuration: 0.2)
         let carousel = app.scrollViews["food.sharedCarousel"]
-        let tab = app.buttons["点餐"]
+        let tab = foodTab(at: 0)
         XCTAssertTrue(carousel.isHittable)
         XCTAssertLessThan(carousel.frame.minY, tab.frame.maxY)
         let firstCard = app.descendants(matching: .any)["food.sharedCarousel.card.0"].firstMatch
@@ -126,6 +126,7 @@ final class FoodCarouselUITests: XCTestCase {
     }
 
     func testTabSwitchAndLayoutKeepProductReadingPosition() {
+        enableKeepsContentScrollPosition()
         app.collectionViews["food.products"].swipeUp()
         let visibleProduct = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "food.add.")).allElementsBoundByIndex.first { $0.isHittable }!
         let productIdentifier = visibleProduct.identifier
@@ -134,7 +135,8 @@ final class FoodCarouselUITests: XCTestCase {
         app.collectionViews["food.products"].swipeLeft(velocity: .slow)
         XCTAssertTrue(app.tables["food.reviews"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.tables["food.reviews"].isHittable)
-        app.staticTexts["点餐"].firstMatch.tap()
+        // 吸顶后的“点餐 ↑”现在是显式回顶；用横滑验证普通切页的位置保留。
+        app.tables["food.reviews"].swipeRight(velocity: .slow)
         XCTAssertEqual(app.buttons[productIdentifier].frame.minY, originalY, accuracy: 2)
         app.navigationBars.buttons["重置"].tap()
         // keepsContentScrollPosition = true 时，现有“重置”的布局更新也保留商品位置。
@@ -144,23 +146,24 @@ final class FoodCarouselUITests: XCTestCase {
     }
 
     func testPullingCategoriesUnderFloatingHeaderDoesNotLeaveGap() {
+        enableKeepsContentScrollPosition()
         // 先滚到第一组约 3 号餐，随后去评价页展开店铺，再回来下拉左栏。
         let productStart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.70, dy: 0.82))
         let productEnd = app.coordinate(withNormalizedOffset: CGVector(dx: 0.70, dy: 0.28))
         productStart.press(forDuration: 0.05, thenDragTo: productEnd, withVelocity: 180, thenHoldForDuration: 0.2)
         let thirdProduct = app.staticTexts["招牌热销 · 3 号餐"]
         XCTAssertTrue(thirdProduct.isHittable)
-        let tab = app.buttons["点餐"]
+        let tab = foodTab(at: 0)
         let remaining = thirdProduct.frame.minY - tab.frame.maxY - 40
         let secondStart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.70, dy: 0.76))
         secondStart.press(forDuration: 0.05, thenDragTo: secondStart.withOffset(CGVector(dx: 0, dy: -remaining)), withVelocity: 180, thenHoldForDuration: 0.2)
         let readingY = thirdProduct.frame.minY - tab.frame.maxY
 
-        app.buttons["评价"].tap()
+        foodTab(at: 1).tap()
         let reviewStart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.72, dy: 0.27))
         reviewStart.press(forDuration: 0.05, thenDragTo: reviewStart.withOffset(CGVector(dx: 0, dy: 280)), withVelocity: 180, thenHoldForDuration: 0.2)
         XCTAssertTrue(app.staticTexts["food.shop"].isHittable)
-        app.buttons["点餐"].tap()
+        foodTab(at: 0).tap()
         XCTAssertEqual(thirdProduct.frame.minY - tab.frame.maxY, readingY, accuracy: 2)
         let productY = thirdProduct.frame.minY
         let firstCategory = app.cells["food.category.0"]
@@ -168,10 +171,98 @@ final class FoodCarouselUITests: XCTestCase {
 
         let leftStart = app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: 44, dy: tab.frame.maxY + 30))
         leftStart.press(forDuration: 0.05, thenDragTo: leftStart.withOffset(CGVector(dx: 0, dy: 240)), withVelocity: 180, thenHoldForDuration: 0.2)
-        // 松手后不能留下公共轮播的 220 点空白，也不能拖走右侧阅读位置。
+        // 松手后不能留下公共轮播的空白，也不能拖走右侧阅读位置。
         XCTAssertEqual(firstCategory.frame.minY, tab.frame.maxY, accuracy: 2)
         XCTAssertEqual(thirdProduct.frame.minY, productY, accuracy: 2)
         capture("保留3号餐-评价展开头部-左栏下拉后无空白")
+    }
+
+    func testCompactCarouselAndPinnedOrderTabExpandWithoutResettingLists() {
+        enableKeepsContentScrollPosition()
+        let order = foodTab(at: 0)
+        let review = foodTab(at: 1)
+        let merchant = foodTab(at: 2)
+        let carousel = app.scrollViews["food.sharedCarousel"]
+        XCTAssertEqual(review.value as? String, "1710 条评价")
+        XCTAssertLessThan(merchant.frame.maxX, app.frame.width * 0.7)
+        XCTAssertEqual(carousel.frame.height, 144, accuracy: 1)
+        let expandedCarouselBottom = carousel.frame.maxY
+        XCTAssertNotEqual(order.value as? String, "返回顶部")
+        let expandedReviewX = review.frame.minX
+        XCTAssertEqual(order.frame.width, 36, accuracy: 1)
+        capture("新版店铺封面-左对齐Tab-紧凑活动卡片")
+        for _ in 0..<4 { carousel.swipeLeft(velocity: .slow) }
+        XCTAssertTrue(app.descendants(matching: .any)["food.sharedCarousel.card.5"].firstMatch.isHittable)
+        assertMenuRemainsVisible()
+
+        for fromReviews in [false, true] {
+            app.collectionViews["food.products"].swipeUp()
+            let leftStart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.10, dy: 0.75))
+            leftStart.press(forDuration: 0.05, thenDragTo: leftStart.withOffset(CGVector(dx: 0, dy: -150)), withVelocity: 180, thenHoldForDuration: 0.2)
+            let productID = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "food.add."))
+                .allElementsBoundByIndex.first { $0.isHittable && $0.frame.minY >= order.frame.maxY }!.identifier
+            let categoryID = app.tables["food.categories"].cells.allElementsBoundByIndex
+                .first { $0.isHittable && $0.frame.minY >= order.frame.maxY }!.identifier
+            // 展开会改变可见 cell 集合，按稳定业务标识跟踪同一项，不能继续按可见下标查询。
+            let product = app.buttons[productID]
+            let category = app.cells[categoryID]
+            let productReadingY = product.frame.minY - order.frame.maxY
+            let categoryReadingY = category.frame.minY - order.frame.maxY
+            if fromReviews { review.tap() }
+            XCTAssertEqual(order.value as? String, "返回顶部")
+            XCTAssertEqual(order.frame.width, 54, accuracy: 1)
+            XCTAssertEqual(review.frame.minX, expandedReviewX + 18, accuracy: 1)
+            capture("吸顶点餐箭头-\(fromReviews ? "评价页" : "点餐页")")
+            order.tap()
+            waitForExpansion(of: carousel, bottom: expandedCarouselBottom)
+            XCTAssertTrue(app.staticTexts["food.shop"].isHittable)
+            XCTAssertTrue(carousel.isHittable)
+            XCTAssertNotEqual(order.value as? String, "返回顶部")
+            XCTAssertEqual(order.frame.width, 36, accuracy: 1)
+            XCTAssertEqual(review.frame.minX, expandedReviewX, accuracy: 1)
+            XCTAssertEqual(product.frame.minY - carousel.frame.maxY, productReadingY, accuracy: 2)
+            XCTAssertEqual(category.frame.minY - carousel.frame.maxY, categoryReadingY, accuracy: 2)
+            // 重新展示的轮播仍保留横向位置和手势优先级。
+            carousel.swipeRight(velocity: .slow)
+            assertMenuRemainsVisible()
+            XCTAssertEqual(product.frame.minY - carousel.frame.maxY, productReadingY, accuracy: 2)
+            let collapseStart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.10, dy: 0.78))
+            collapseStart.press(forDuration: 0.05, thenDragTo: collapseStart.withOffset(CGVector(dx: 0, dy: -360)),
+                                withVelocity: 180, thenHoldForDuration: 0.2)
+            XCTAssertFalse(carousel.isHittable)
+            XCTAssertEqual(product.frame.minY - order.frame.maxY, productReadingY, accuracy: 2)
+            order.tap()
+            waitForExpansion(of: carousel, bottom: expandedCarouselBottom)
+            XCTAssertTrue(carousel.isHittable)
+            XCTAssertEqual(product.frame.minY - carousel.frame.maxY, productReadingY, accuracy: 2)
+        }
+        capture("点餐展开-封面和共享轮播恢复-两列保留阅读位置")
+    }
+
+    private func waitForExpansion(of carousel: XCUIElement, bottom: CGFloat) {
+        // CADisplayLink 不属于 XCTest 自动等待的 UIKit 动画；明确等到展开后的几何再比较两列坐标。
+        let expanded = NSPredicate { _, _ in abs(carousel.frame.maxY - bottom) < 0.1 }
+        let finished = expectation(for: expanded, evaluatedWith: carousel)
+        wait(for: [finished], timeout: 3)
+    }
+
+    private func enableKeepsContentScrollPosition() {
+        // 配置只保存在内存中：从设置页开启，再重新进入示例，验证实际接入路径。
+        app.navigationBars["外卖点餐双列表"].buttons.element(boundBy: 0).tap()
+        app.tabBars.buttons["设置"].tap()
+        let toggle = app.cells.containing(.staticText, identifier: "keepsContentScrollPosition").switches.firstMatch
+        XCTAssertTrue(toggle.waitForExistence(timeout: 3))
+        if toggle.value as? String != "1" { toggle.tap() }
+        XCTAssertEqual(toggle.value as? String, "1")
+        // 导航栈变化时系统可能用「示例」或「示例列表」作为标签，固定返回第一个 Tab。
+        app.tabBars.buttons.element(boundBy: 0).tap()
+        app.cells.containing(.staticText, identifier: "外卖点餐双列表").firstMatch.tap()
+        XCTAssertTrue(app.collectionViews["food.products"].waitForExistence(timeout: 3))
+    }
+
+    private func foodTab(at index: Int) -> XCUIElement {
+        // JXCategoryView 使用 UICollectionViewCell，不再是内置 Tab 的 UIButton。
+        app.descendants(matching: .any)["food.tab.\(index)"].firstMatch
     }
 
     private func capture(_ name: String) {
