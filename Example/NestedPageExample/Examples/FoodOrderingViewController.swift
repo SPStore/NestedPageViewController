@@ -14,6 +14,7 @@ final class FoodOrderingViewController: UIViewController, NestedPageViewControll
     private let navigationBackground = UIView()
     private lazy var navigationBackgroundHeight = navigationBackground.heightAnchor.constraint(equalToConstant: 0)
     private var lastPagerSize = CGSize.zero
+    private var lastCoverHeight: CGFloat = 0
     private var itemCount = 0
     private var returnsToTopAfterTabClick = false
 
@@ -29,6 +30,12 @@ final class FoodOrderingViewController: UIViewController, NestedPageViewControll
         navigationItem.largeTitleDisplayMode = .never
         extendedLayoutIncludesOpaqueBars = true
         setupNavigationBar()
+        cover.onFulfillmentModeChanged = { [weak self] in
+            guard let self else { return }
+            self.lastCoverHeight = self.heightForCoverView(in: self.pager)
+            self.updatePagerLayouts()
+            if !self.pager.keepsContentScrollPosition { self.menu.resetCategoryPosition() }
+        }
         navigationItem.rightBarButtonItems = [
             UIBarButtonItem(title: "重置", style: .plain, target: self, action: #selector(reset)),
             UIBarButtonItem(title: "短分类", style: .plain, target: self, action: #selector(toggleCategories))
@@ -102,6 +109,7 @@ final class FoodOrderingViewController: UIViewController, NestedPageViewControll
         super.viewWillAppear(animated)
         navigationController?.setNavigationBarHidden(false, animated: animated)
         tabStrip.contentScrollView = pager.containerScrollView
+        synchronizeHeader()
     }
 
     override func viewDidDisappear(_ animated: Bool) {
@@ -114,6 +122,8 @@ final class FoodOrderingViewController: UIViewController, NestedPageViewControll
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         menu.stopMotion()
+        // NavigationController 是共享的，离开点餐页时恢复其他示例的全局颜色。
+        navigationController?.navigationBar.tintColor = .label
     }
 
     override func viewDidLayoutSubviews() {
@@ -126,10 +136,12 @@ final class FoodOrderingViewController: UIViewController, NestedPageViewControll
         }
         cover.topContentInset = navigationBottom
         navigationBackgroundHeight.constant = navigationBottom
-        if lastPagerSize != pager.view.bounds.size || pager.stickyOffset != navigationBottom {
+        let coverHeight = heightForCoverView(in: pager)
+        if lastPagerSize != pager.view.bounds.size || pager.stickyOffset != navigationBottom || lastCoverHeight != coverHeight {
             lastPagerSize = pager.view.bounds.size
+            lastCoverHeight = coverHeight
             pager.stickyOffset = navigationBottom
-            if pager.viewController(at: 0) != nil { pager.updateLayouts() }
+            if pager.viewController(at: 0) != nil { updatePagerLayouts() }
         }
         synchronizeHeader()
     }
@@ -142,10 +154,17 @@ final class FoodOrderingViewController: UIViewController, NestedPageViewControll
         navigationItem.scrollEdgeAppearance = appearance
         navigationItem.compactAppearance = appearance
         navigationItem.compactScrollEdgeAppearance = appearance
+        navigationController?.navigationBar.tintColor = .white
     }
 
     private func updateCart() {
         cartLabel.text = itemCount == 0 ? "购物车空空的　·　商品可点击 + 加入" : "已选 \(itemCount) 件商品　·　本地交互示例"
+    }
+
+    private func updatePagerLayouts() {
+        menu.performHeaderLayoutUpdate { pager.updateLayouts() }
+        // 核心布局期间暂停了滚动回调，完成后同步轮播、左栏与导航栏。
+        synchronizeHeader()
     }
 
     @objc private func reset() {
@@ -170,8 +189,11 @@ final class FoodOrderingViewController: UIViewController, NestedPageViewControll
         menu.updateSharedHeader(visibleHeight: bottom)
         let pinnedHeight = pager.stickyOffset + FoodMenuViewController.tabHeight
         tabStrip.showsBackToTop = bottom <= pinnedHeight + 0.5
-        let collapseDistance = max(1, FoodMenuViewController.coverHeight - pager.stickyOffset)
-        navigationBackground.alpha = min(max((pager.headerHeight - bottom) / collapseDistance, 0), 1)
+        let collapseDistance = max(1, pager.headerHeight - FoodMenuViewController.tabHeight - pager.stickyOffset)
+        let progress = min(max((pager.headerHeight - bottom) / collapseDistance, 0), 1)
+        navigationBackground.alpha = progress
+        // 深色封面展开时为白色，随封面收起连续过渡为黑色。
+        navigationController?.navigationBar.tintColor = UIColor(white: 1 - progress, alpha: 1)
     }
 
     func numberOfViewControllers(in pageViewController: NestedPageViewController) -> Int { 3 }
@@ -179,7 +201,9 @@ final class FoodOrderingViewController: UIViewController, NestedPageViewControll
         index == 0 ? menu : FoodInfoViewController(isReviews: index == 1)
     }
     func coverView(in pageViewController: NestedPageViewController) -> UIView? { cover }
-    func heightForCoverView(in pageViewController: NestedPageViewController) -> CGFloat { FoodMenuViewController.coverHeight }
+    func heightForCoverView(in pageViewController: NestedPageViewController) -> CGFloat {
+        cover.preferredHeight(for: pageViewController.view.bounds.width)
+    }
     func tabStrip(in pageViewController: NestedPageViewController) -> UIView? { tabStrip }
     func heightForTabStrip(in pageViewController: NestedPageViewController) -> CGFloat { FoodMenuViewController.tabHeight }
     func pageViewController(_ pageViewController: NestedPageViewController, contentScrollViewDidScroll scrollView: UIScrollView, headerOffset: CGFloat, isSticked: Bool) {

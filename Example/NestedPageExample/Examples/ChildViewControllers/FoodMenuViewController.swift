@@ -2,7 +2,6 @@ import UIKit
 import NestedPageViewController
 
 final class FoodMenuViewController: UIViewController, NestedPageScrollable {
-    static let coverHeight: CGFloat = 380
     static let tabHeight: CGFloat = 44
     static let sharedCarouselHeight: CGFloat = 144
     static let productCarouselHeight: CGFloat = 120
@@ -10,11 +9,12 @@ final class FoodMenuViewController: UIViewController, NestedPageScrollable {
     private let showsCarousels: Bool
     private var carouselHeight: CGFloat { showsCarousels ? Self.sharedCarouselHeight : 0 }
     private var leadingSectionCount: Int { showsCarousels ? 2 : 0 }
-    private var headerHeight: CGFloat { pager?.headerHeight ?? Self.coverHeight + Self.tabHeight }
+    private var headerHeight: CGFloat { pager?.headerHeight ?? Self.tabHeight }
     private var pinnedHeaderHeight: CGFloat { Self.tabHeight + (pager?.stickyOffset ?? 0) }
     private var selectedCategory = 0
     private var categoryScrollTarget: Int?
     private var lastLayoutSize = CGSize.zero
+    private var isUpdatingHeaderLayout = false
 
     weak var pager: NestedPageViewController?
     var onAdd: (() -> Void)?
@@ -99,13 +99,14 @@ final class FoodMenuViewController: UIViewController, NestedPageScrollable {
         super.viewDidLayoutSubviews()
         // 组件加载子页时会统一设置商品列表的 bounces，因此在其后的布局阶段关闭回弹。
         products.bounces = false
+        guard !isUpdatingHeaderLayout else { return }
         let changed = lastLayoutSize != view.bounds.size
         lastLayoutSize = view.bounds.size
         if changed {
             productLayout.itemSize = CGSize(width: max(1, view.bounds.width - categoryWidth - 24), height: 104)
             productLayout.headerReferenceSize = CGSize(width: view.bounds.width, height: 36)
         }
-        dualCoordinator.updatePinnedHeaderHeight(pinnedHeaderHeight)
+        dualCoordinator.updateHeaderHeights(expanded: headerHeight, pinned: pinnedHeaderHeight)
         dualCoordinator.layoutContent()
         // 最后一个商品分组不足一屏时才补足空间，保证点击分类也能把标题滚到 tab 下方。
         let lastHeight = CGFloat(productCount(in: names.count - 1)) * 104 + 36 + 12
@@ -117,12 +118,23 @@ final class FoodMenuViewController: UIViewController, NestedPageScrollable {
     }
 
     func updateSharedHeader(visibleHeight: CGFloat) {
-        guard isViewLoaded else { return }
-        dualCoordinator.updatePinnedHeaderHeight(pinnedHeaderHeight)
+        guard isViewLoaded, !isUpdatingHeaderLayout else { return }
+        dualCoordinator.updateHeaderHeights(expanded: headerHeight, pinned: pinnedHeaderHeight)
         dualCoordinator.updateVisibleHeaderHeight(visibleHeight)
         productLayout.visibleContentTop = dualCoordinator.visibleSharedHeight
         productLayout.invalidateLayout()
         updateSelectedCategory()
+    }
+
+    /// 核心会先更新 inset、临时回顶，再恢复阅读位置；业务层等这一过程结束后再同步。
+    func performHeaderLayoutUpdate(_ update: () -> Void) {
+        stopMotion()
+        isUpdatingHeaderLayout = true
+        defer {
+            isUpdatingHeaderLayout = false
+            if isViewLoaded { view.setNeedsLayout() }
+        }
+        update()
     }
 
     func resetCategoryPosition() {
@@ -158,7 +170,7 @@ final class FoodMenuViewController: UIViewController, NestedPageScrollable {
     }
 
     private func updateSelectedCategory() {
-        guard !dualCoordinator.isUpdatingSharedHeader, categoryScrollTarget == nil,
+        guard !isUpdatingHeaderLayout, !dualCoordinator.isUpdatingSharedHeader, categoryScrollTarget == nil,
               productLayout.headerReferenceSize.height > 0,
               productLayout.headerCount == names.count,
               products.contentInset.top == headerHeight,
@@ -269,7 +281,7 @@ extension FoodMenuViewController: UITableViewDataSource, UITableViewDelegate, UI
 
 private final class FoodProductLayout: UICollectionViewFlowLayout {
     // 分组标题吸在 Tab 与当前可见共享轮播之后，不能覆盖重新展开的共享内容。
-    var visibleContentTop: CGFloat = FoodMenuViewController.coverHeight + FoodMenuViewController.tabHeight
+    var visibleContentTop: CGFloat = 0
     var categoryWidth: CGFloat = 92
     var leadingSectionCount = 0
     private var originalHeaders: [UICollectionViewLayoutAttributes] = []

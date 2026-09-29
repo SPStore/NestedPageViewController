@@ -11,7 +11,7 @@ import NestedPageViewController
 /// - 本类拥有副列表的 inset / offset / 裁剪几何；主列表 inset 仍由核心与业务配置。
 final class NestedPageDualScrollCoordinator {
     let contentView: NestedPageDualScrollView
-    let expandedHeaderHeight: CGFloat
+    private(set) var expandedHeaderHeight: CGFloat
     private(set) var pinnedHeaderHeight: CGFloat
     let sharedContentHeight: CGFloat
     private(set) var visibleHeaderHeight: CGFloat
@@ -79,11 +79,20 @@ final class NestedPageDualScrollCoordinator {
 
     /// 导航栏或安全区改变时更新吸顶底边，随后仍由页面同步 Tab 的实际位置。
     func updatePinnedHeaderHeight(_ height: CGFloat) {
-        precondition(height >= 0 && height <= expandedHeaderHeight)
         guard pinnedHeaderHeight != height else { return }
-        pinnedHeaderHeight = height
-        stopMotion()
+        updateHeaderHeights(expanded: expandedHeaderHeight, pinned: height)
         updateVisibleHeaderHeight(visibleHeaderHeight)
+    }
+
+    /// 封面内容或安全区变化后同步展开 / 吸顶边界，再用 updateVisibleHeaderHeight 传入最终 Tab 坐标。
+    /// 两个边界一起更新，避免增高导航栏时拿新吸顶高度校验旧展开高度。
+    func updateHeaderHeights(expanded: CGFloat, pinned: CGFloat) {
+        precondition(expanded >= pinned && pinned >= 0)
+        guard expandedHeaderHeight != expanded || pinnedHeaderHeight != pinned else { return }
+        expandedHeaderHeight = expanded
+        pinnedHeaderHeight = pinned
+        // stopMotion 可能同步触发主列表 KVO，先提交新边界，避免回调重入时再次更新。
+        stopMotion()
     }
 
     /// 传入 Tab 实际底边在 contentView 中的坐标，而不是仅传 isSticked。

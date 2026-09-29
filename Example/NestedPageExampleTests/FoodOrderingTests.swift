@@ -9,6 +9,115 @@ import JXCategoryView
 @MainActor
 final class FoodOrderingTests: XCTestCase {
     private let sharedHeight = FoodMenuViewController.sharedCarouselHeight
+
+    func testFulfillmentSwitchUpdatesEveryTabWithoutHeightDrift() throws {
+        let config = NestedPageConfig.shared
+        let previousValue = config.keepsContentScrollPosition
+        defer { config.keepsContentScrollPosition = previousValue }
+        for keepsPosition in [false, true] {
+            config.keepsContentScrollPosition = keepsPosition
+            let window = UIWindow(frame: UIScreen.main.bounds)
+            let demo = FoodOrderingViewController()
+            window.rootViewController = UINavigationController(rootViewController: demo)
+            window.makeKeyAndVisible()
+            defer { window.isHidden = true; window.rootViewController = nil }
+            window.layoutIfNeeded()
+            demo.view.layoutIfNeeded()
+            let pager = try XCTUnwrap(demo.children.compactMap { $0 as? NestedPageViewController }.first)
+            let cover = try XCTUnwrap(demo.coverView(in: pager) as? FoodShopCoverView)
+            let views = descendants(in: cover)
+            let control = try XCTUnwrap(views.compactMap { $0 as? UISegmentedControl }.first)
+            let summary = try XCTUnwrap(views.first { $0.accessibilityIdentifier == "food.serviceSummary" } as? UILabel)
+            let detail = try XCTUnwrap(views.first { $0.accessibilityIdentifier == "food.serviceDetail" } as? UILabel)
+            let deliveryHeight = pager.headerHeight
+            let tab = try XCTUnwrap(demo.tabStrip(in: pager))
+            for pageIndex in 0..<3 {
+                pager.scrollToPage(at: pageIndex, animated: false)
+                pager.scrollToTop(animated: false)
+                let child = try XCTUnwrap(pager.viewController(at: pageIndex))
+                for mode in [1, 0, 1, 0] {
+                    control.selectedSegmentIndex = mode
+                    control.sendActions(for: .valueChanged)
+                    window.layoutIfNeeded()
+                    cover.layoutIfNeeded()
+                    XCTAssertEqual(pager.currentIndex, pageIndex)
+                    XCTAssertEqual(child.nestedPageContentScrollView.contentInset.top, pager.headerHeight, accuracy: 0.5)
+                    XCTAssertEqual(child.nestedPageContentScrollView.contentOffset.y, -pager.headerHeight, accuracy: 0.5)
+                    XCTAssertEqual(tab.convert(tab.bounds, to: demo.view).minY, cover.bounds.height, accuracy: 0.5)
+                    if mode == 1 {
+                        XCTAssertLessThan(pager.headerHeight, deliveryHeight - 15)
+                        XCTAssertTrue(summary.text?.contains("免配送费") == true)
+                        XCTAssertTrue(detail.text?.contains("幸福路") == true)
+                    } else {
+                        XCTAssertEqual(pager.headerHeight, deliveryHeight, accuracy: 0.5)
+                        XCTAssertTrue(summary.text?.contains("配送费 ¥2") == true)
+                    }
+                    if pageIndex == 0 {
+                        let menu = try XCTUnwrap(child as? FoodMenuViewController)
+                        let category = try XCTUnwrap(menu.view.subviews.flatMap(\.subviews).compactMap { $0 as? UITableView }.first)
+                        XCTAssertEqual(category.superview!.frame.minY, pager.headerHeight + sharedHeight, accuracy: 0.5)
+                        XCTAssertEqual(category.contentOffset.y + category.superview!.frame.minY, 0, accuracy: 0.5)
+                    }
+                }
+            }
+        }
+    }
+
+    func testFulfillmentSwitchKeepsReadingPositionsAndUsesNewExpansionHeight() throws {
+        let config = NestedPageConfig.shared
+        let previousValue = config.keepsContentScrollPosition
+        config.keepsContentScrollPosition = true
+        defer { config.keepsContentScrollPosition = previousValue }
+        let window = UIWindow(frame: UIScreen.main.bounds)
+        let demo = FoodOrderingViewController()
+        window.rootViewController = UINavigationController(rootViewController: demo)
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true; window.rootViewController = nil }
+        window.layoutIfNeeded()
+        demo.view.layoutIfNeeded()
+        let pager = try XCTUnwrap(demo.children.compactMap { $0 as? NestedPageViewController }.first)
+        let cover = try XCTUnwrap(demo.coverView(in: pager))
+        let control = try XCTUnwrap(descendants(in: cover).compactMap { $0 as? UISegmentedControl }.first)
+        let menu = try XCTUnwrap(pager.viewController(at: 0) as? FoodMenuViewController)
+        let category = try XCTUnwrap(menu.view.subviews.flatMap(\.subviews).compactMap { $0 as? UITableView }.first)
+        let products = menu.nestedPageContentScrollView
+        let pinned = pager.stickyOffset + FoodMenuViewController.tabHeight
+        products.contentOffset.y = 700
+        category.contentOffset.y += 90
+        let productDepth = products.contentOffset.y + pinned - sharedHeight
+        let categoryDepth = category.contentOffset.y + pinned
+        let selectedCategory = category.indexPathForSelectedRow
+        for mode in [1, 0] {
+            control.selectedSegmentIndex = mode
+            control.sendActions(for: .valueChanged)
+            window.layoutIfNeeded()
+            XCTAssertEqual(category.superview!.frame.minY, pinned, accuracy: 0.5)
+            XCTAssertEqual(products.contentOffset.y + pinned - sharedHeight, productDepth, accuracy: 0.5)
+            XCTAssertEqual(category.contentOffset.y + pinned, categoryDepth, accuracy: 0.5)
+        }
+        menu.expandSharedHeader()
+        for mode in [1, 0, 1] {
+            control.selectedSegmentIndex = mode
+            control.sendActions(for: .valueChanged)
+            window.layoutIfNeeded()
+            XCTAssertEqual(category.superview!.frame.minY, pager.headerHeight + sharedHeight, accuracy: 0.5)
+            XCTAssertEqual(products.contentOffset.y + pager.headerHeight, productDepth, accuracy: 0.5)
+            XCTAssertEqual(category.contentOffset.y + category.superview!.frame.minY, categoryDepth, accuracy: 0.5)
+            XCTAssertEqual(category.indexPathForSelectedRow, selectedCategory)
+            // 切换后仍能完整收起，并按新高度展开，而不是回到初次进入时的高度。
+            products.contentOffset.y += pager.headerHeight + sharedHeight - pinned
+            XCTAssertEqual(category.superview!.frame.minY, pinned, accuracy: 0.5)
+            menu.expandSharedHeader()
+            XCTAssertEqual(category.superview!.frame.minY, pager.headerHeight + sharedHeight, accuracy: 0.5)
+            XCTAssertEqual(products.contentOffset.y + pager.headerHeight, productDepth, accuracy: 0.5)
+            XCTAssertEqual(category.contentOffset.y + category.superview!.frame.minY, categoryDepth, accuracy: 0.5)
+        }
+    }
+
+    private func descendants(in view: UIView) -> [UIView] {
+        view.subviews.flatMap { [$0] + descendants(in: $0) }
+    }
+
     func testActualDemoReadsKeepsContentScrollPositionConfiguration() {
         let config = NestedPageConfig.shared
         let originalValue = config.keepsContentScrollPosition
@@ -58,7 +167,7 @@ final class FoodOrderingTests: XCTestCase {
         host.view.layoutIfNeeded()
         let menu = host.viewController(at: 0) as! FoodMenuViewController
         menu.view.layoutIfNeeded()
-        let expandedHeight = FoodMenuViewController.coverHeight + FoodMenuViewController.tabHeight
+        let expandedHeight = demo.heightForCoverView(in: host) + FoodMenuViewController.tabHeight
         let pinnedHeight = host.stickyOffset + FoodMenuViewController.tabHeight
         XCTAssertEqual(host.headerHeight, expandedHeight, accuracy: 0.1)
         XCTAssertEqual(menu.nestedPageContentScrollView.contentOffset.y, -expandedHeight, accuracy: 0.1)
@@ -125,9 +234,9 @@ final class FoodOrderingTests: XCTestCase {
         XCTAssertEqual(cover.topContentInset, navBottom, accuracy: 0.5)
         cover.layoutIfNeeded()
         let slogan = try XCTUnwrap(cover.subviews.first { $0.accessibilityIdentifier == "food.slogan" })
-        let information = try XCTUnwrap(cover.subviews.first { $0.subviews.contains { $0.accessibilityIdentifier == "food.shop" } })
+        let information = try XCTUnwrap(cover.subviews.first { $0.accessibilityIdentifier == "food.shopInformation" })
         XCTAssertEqual(slogan.frame.minY, navBottom + 24, accuracy: 0.5)
-        XCTAssertEqual(cover.bounds.maxY - information.frame.maxY, 28, accuracy: 0.5)
+        XCTAssertEqual(cover.bounds.maxY - information.frame.maxY, 16, accuracy: 0.5)
         for index in 0..<3 {
             host.scrollToPage(at: index, animated: false)
             host.scrollToTop(animated: false)
@@ -139,13 +248,18 @@ final class FoodOrderingTests: XCTestCase {
             XCTAssertEqual(cover.convert(cover.bounds, to: demo.view).minY, 0, accuracy: 0.5)
             if #available(iOS 26.0, *) { XCTAssertTrue(list.topEdgeEffect.isHidden) }
             for progress: CGFloat in [0, 0.5, 1] {
-                list.contentOffset.y = -host.headerHeight + (FoodMenuViewController.coverHeight - host.stickyOffset) * progress
+                list.contentOffset.y = -host.headerHeight + (demo.heightForCoverView(in: host) - host.stickyOffset) * progress
                 for appearance in [demo.navigationItem.standardAppearance, demo.navigationItem.scrollEdgeAppearance,
                                    demo.navigationItem.compactAppearance, demo.navigationItem.compactScrollEdgeAppearance] {
                     XCTAssertEqual(appearance?.backgroundColor?.cgColor.alpha ?? 0, 0, accuracy: 0.01)
                     XCTAssertNil(appearance?.backgroundEffect)
                 }
                 XCTAssertEqual(navigationBackground.alpha, progress, accuracy: 0.01)
+                var white: CGFloat = -1
+                var alpha: CGFloat = -1
+                XCTAssertTrue(navigation.navigationBar.tintColor.getWhite(&white, alpha: &alpha))
+                XCTAssertEqual(white, 1 - progress, accuracy: 0.01)
+                XCTAssertEqual(alpha, 1, accuracy: 0.01)
                 XCTAssertEqual(tab.showsBackToTop, progress == 1)
                 XCTAssertEqual(demo.navigationItem.title, "")
             }

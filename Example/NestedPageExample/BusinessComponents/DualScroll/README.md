@@ -45,7 +45,7 @@ override func loadView() {
 
    注册接受普通 `UIScrollView` / `UICollectionView`，同一实例重复注册不会增加手势。它保证内部起拖时外层不横向翻页，但内部横纵方向识别仍由各滚动视图负责；`FoodCarouselView` 保留了自己的方向判断。不要让主列表的纵向 pan 等待轮播 pan 失败。
 
-2. 在 `viewDidLayoutSubviews` 调用 `dualCoordinator.layoutContent()`。如果导航栏高度或安全区变化，先用 `updatePinnedHeaderHeight(pager.stickyOffset + 44)` 同步新的吸顶底边。副列表内容量变化后也需要重新布局，以更新短内容 bottom inset。主列表的商品行等应自行给左侧副列表留出空间；只有公共区域占满整行。
+2. 在 `viewDidLayoutSubviews` 调用 `dualCoordinator.layoutContent()`。如果封面内容、导航栏高度或安全区变化，用 `updateHeaderHeights(expanded: pager.headerHeight, pinned: pager.stickyOffset + 44)` 同步新的边界，再通过 `updateVisibleHeaderHeight` 同步 Tab 实际底边；只改变吸顶高度时也可以使用 `updatePinnedHeaderHeight`。副列表内容量变化后同样需要重新布局，以更新短内容 bottom inset。主列表的商品行等应自行给左侧副列表留出空间；只有公共区域占满整行。
 
 3. 在页面原有的两个滚动代理回调中转发，业务自身的逻辑继续保留：
 

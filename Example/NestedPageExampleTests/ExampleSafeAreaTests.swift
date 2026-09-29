@@ -148,9 +148,10 @@ final class ExampleSafeAreaTests: XCTestCase {
                     settleAppearance()
 
                     let pager = try XCTUnwrap(root.children.compactMap { $0 as? NestedPageViewController }.first, model.title)
-                    XCTAssertEqual(navigation.navigationBar.tintColor, UIColor.label, model.title)
+                    XCTAssertEqual(navigation.navigationBar.tintColor,
+                                   root is FoodOrderingViewController ? .white : .label,
+                                   model.title)
                     pager.view.layoutIfNeeded()
-                    let safeFrame = root.view.safeAreaLayoutGuide.layoutFrame
                     var expected = expectedPagerFrame(in: root)
                     assertEqual(pager.view.frame, expected, model.title)
                     XCTAssertFalse(pager.view.translatesAutoresizingMaskIntoConstraints, model.title)
@@ -166,18 +167,12 @@ final class ExampleSafeAreaTests: XCTestCase {
                     child.view.layoutIfNeeded()
                     let scrollView = child.nestedPageContentScrollView
                     var expectedScrollFrame = child.view.safeAreaLayoutGuide.layoutFrame
-                    if root is HeaderZoomViewController || root is FoodOrderingViewController {
+                    if root is HeaderZoomViewController || root is FoodOrderingViewController || root is ObjcExmpleViewController {
                         expectedScrollFrame.size.height += expectedScrollFrame.minY
                         expectedScrollFrame.origin.y = 0
                     }
                     assertEqual(scrollView.frame, expectedScrollFrame, model.title)
 
-                    if root is ObjcExmpleViewController {
-                        XCTAssertEqual(pager.stickyOffset, 44, model.title)
-                        let back = try XCTUnwrap(root.view.subviews.compactMap { $0 as? UIButton }.first)
-                        XCTAssertEqual(back.tintColor, UIColor.label, model.title)
-                        XCTAssertTrue(safeFrame.contains(back.frame), model.title)
-                    }
                     if let headerZoom = root as? HeaderZoomViewController {
                         try verifyHeaderZoom(headerZoom, pager: pager)
                         // 顶部安全区改变后，仍应以系统导航栏的实际底边作为吸顶位置。
@@ -186,6 +181,15 @@ final class ExampleSafeAreaTests: XCTestCase {
                         root.view.layoutIfNeeded()
                         pager.view.layoutIfNeeded()
                         try verifyHeaderZoom(headerZoom, pager: pager)
+                    }
+                    if let objc = root as? ObjcExmpleViewController {
+                        try verifyObjcSystemNavigation(objc, pager: pager)
+                        // OC 桥接用法也要在安全区变化后重新读取系统导航栏底边。
+                        root.additionalSafeAreaInsets.top += 13
+                        window.layoutIfNeeded()
+                        root.view.layoutIfNeeded()
+                        pager.view.layoutIfNeeded()
+                        try verifyObjcSystemNavigation(objc, pager: pager)
                     }
                     if root is FoodOrderingViewController {
                         try verifyFoodCart(in: root)
@@ -212,7 +216,7 @@ final class ExampleSafeAreaTests: XCTestCase {
 
     private func expectedPagerFrame(in root: UIViewController) -> CGRect {
         var frame = root.view.safeAreaLayoutGuide.layoutFrame
-        if root is HeaderZoomViewController || root is FoodOrderingViewController {
+        if root is HeaderZoomViewController || root is FoodOrderingViewController || root is ObjcExmpleViewController {
             frame.size.height += frame.minY
             frame.origin.y = 0
         }
@@ -259,7 +263,7 @@ final class ExampleSafeAreaTests: XCTestCase {
         let cover = try XCTUnwrap(root.coverView(in: pager) as? ProfileCoverView)
         let navigation = try XCTUnwrap(root.navigationController)
         let navigationBar = navigation.navigationBar
-        let originalAppearance = navigationBar.standardAppearance.copy() as! UINavigationBarAppearance
+        let originalAppearance = navigationBar.standardAppearance.copy()
         let navigationBottom = max(0, navigationBar.convert(navigationBar.bounds, to: root.view).maxY)
         XCTAssertFalse(navigation.isNavigationBarHidden)
         XCTAssertFalse(root.navigationItem.hidesBackButton)
@@ -299,7 +303,47 @@ final class ExampleSafeAreaTests: XCTestCase {
         XCTAssertEqual(navigationBar.standardAppearance, originalAppearance)
     }
 
-    private func assertNavigationProgress(_ root: HeaderZoomViewController, expected: CGFloat,
+    private func verifyObjcSystemNavigation(_ root: ObjcExmpleViewController,
+                                            pager: NestedPageViewController) throws {
+        let navigation = try XCTUnwrap(root.navigationController)
+        let navigationBar = navigation.navigationBar
+        let originalAppearance = navigationBar.standardAppearance.copy()
+        let navigationBottom = max(0, navigationBar.convert(navigationBar.bounds, to: root.view).maxY)
+        let cover = try XCTUnwrap(findView(in: root.view, identifier: "objc.cover"))
+        XCTAssertFalse(navigation.isNavigationBarHidden)
+        XCTAssertFalse(root.navigationItem.hidesBackButton)
+        XCTAssertNil(root.navigationItem.leftBarButtonItem)
+        XCTAssertNil(root.navigationItem.titleView)
+        XCTAssertFalse(root.view.subviews.contains { $0 is UIButton })
+        XCTAssertEqual(pager.stickyOffset, navigationBottom, accuracy: 0.5)
+        for index in 0..<4 {
+            pager.scrollToPage(at: index, animated: false)
+            pager.scrollToTop(animated: false)
+            pager.view.layoutIfNeeded()
+            let child = try XCTUnwrap(pager.viewController(at: index))
+            child.view.layoutIfNeeded()
+            let scrollView = child.nestedPageContentScrollView
+            XCTAssertEqual(scrollView.frame.minY, 0, accuracy: 0.5)
+            XCTAssertEqual(cover.convert(cover.bounds, to: root.view).minY, 0, accuracy: 0.5)
+            if #available(iOS 26.0, *) {
+                XCTAssertTrue(scrollView.topEdgeEffect.isHidden)
+                XCTAssertTrue(pager.containerScrollView.topEdgeEffect.isHidden)
+            }
+            assertNavigationProgress(root, expected: 0)
+
+            let collapseDistance = 240 - pager.stickyOffset
+            scrollView.setContentOffset(CGPoint(x: 0, y: -pager.headerHeight + collapseDistance / 2), animated: false)
+            assertNavigationProgress(root, expected: 0.5)
+
+            scrollView.setContentOffset(.zero, animated: false)
+            XCTAssertEqual(cover.convert(cover.bounds, to: root.view).maxY, navigationBottom, accuracy: 0.5)
+            assertNavigationProgress(root, expected: 1)
+        }
+        pager.scrollToTop(animated: false)
+        XCTAssertEqual(navigationBar.standardAppearance, originalAppearance)
+    }
+
+    private func assertNavigationProgress(_ root: UIViewController, expected: CGFloat,
                                           file: StaticString = #filePath, line: UInt = #line) {
         let appearances = [root.navigationItem.standardAppearance, root.navigationItem.scrollEdgeAppearance,
                            root.navigationItem.compactAppearance, root.navigationItem.compactScrollEdgeAppearance]

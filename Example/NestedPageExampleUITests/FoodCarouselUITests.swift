@@ -110,7 +110,7 @@ final class FoodCarouselUITests: XCTestCase {
         XCTAssertTrue(slogan.isHittable)
         XCTAssertFalse(app.navigationBars.staticTexts["外卖点餐双列表"].exists)
         let expandedTabY = order.frame.minY
-        XCTAssertEqual(expandedTabY, 380, accuracy: 2)
+        XCTAssertGreaterThan(expandedTabY, app.segmentedControls["food.fulfillment"].frame.maxY)
         XCTAssertTrue(app.buttons["BackButton"].firstMatch.isHittable)
         capture("点餐封面-屏幕顶部展开-无导航标题")
         let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.78, dy: 0.82))
@@ -129,6 +129,30 @@ final class FoodCarouselUITests: XCTestCase {
         capture("点餐封面-点击点餐恢复透明导航栏")
         app.buttons["BackButton"].firstMatch.tap()
         XCTAssertTrue(app.navigationBars["示例列表"].waitForExistence(timeout: 5))
+    }
+
+    func testFulfillmentSwitchAndExpandWithNewCoverHeight() {
+        let control = app.segmentedControls["food.fulfillment"]
+        XCTAssertTrue(control.waitForExistence(timeout: 3))
+        let order = foodTab(at: 0)
+        let deliveryTop = order.frame.minY
+        capture("外送-配送时间与优惠")
+        control.buttons["自取"].tap()
+        XCTAssertTrue(control.buttons["自取"].isSelected)
+        XCTAssertTrue(app.staticTexts["food.serviceSummary"].label.contains("免配送费"))
+        XCTAssertTrue(app.staticTexts["food.serviceDetail"].label.contains("幸福路"))
+        let pickupTop = order.frame.minY
+        XCTAssertLessThan(pickupTop, deliveryTop - 15)
+        capture("自取-门店地址与更紧凑的封面")
+        app.collectionViews["food.products"].swipeUp()
+        XCTAssertEqual(order.value as? String, "返回顶部")
+        order.tap()
+        waitForExpansion(of: app.scrollViews["food.sharedCarousel"], bottom: pickupTop + 44 + 144)
+        XCTAssertTrue(control.buttons["自取"].isHittable)
+        XCTAssertTrue(control.buttons["自取"].isSelected)
+        control.buttons["外送"].tap()
+        XCTAssertEqual(order.frame.minY, deliveryTop, accuracy: 1)
+        capture("切回外送-封面及共享轮播恢复")
     }
 
     func testSharedCarouselHorizontalDragDoesNotSwitchTabAndVerticalDragScrollsPage() {

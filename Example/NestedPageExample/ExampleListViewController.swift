@@ -107,7 +107,7 @@ extension ExampleListViewController: UITableViewDelegate {
         switch model.action {
         case .push:
             // 如果不是IncludeTabBarViewController类型，才隐藏TabBar
-            if !(contentViewController is IncludeTabBarViewController) && !(contentViewController is ObjcExmpleViewController) {
+            if !(contentViewController is IncludeTabBarViewController) {
                 viewController.hidesBottomBarWhenPushed = true
             }
             navigationController?.pushViewController(viewController, animated: true)

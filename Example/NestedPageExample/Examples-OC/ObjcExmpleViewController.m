@@ -49,11 +49,15 @@
     _tableView.dataSource = self;
     _tableView.delegate = self;
     _tableView.rowHeight = 60;
+    if (@available(iOS 26.0, *)) {
+        _tableView.topEdgeEffect.hidden = YES;
+    }
     [_tableView registerClass:[UITableViewCell class] forCellReuseIdentifier:@"Cell"];
     [self.view addSubview:_tableView];
     UILayoutGuide *safeArea = self.view.safeAreaLayoutGuide;
     [NSLayoutConstraint activateConstraints:@[
-        [_tableView.topAnchor constraintEqualToAnchor:safeArea.topAnchor],
+        // 封面挂在子列表上，列表顶部不能再次扣除导航栏安全区。
+        [_tableView.topAnchor constraintEqualToAnchor:self.view.topAnchor],
         [_tableView.leadingAnchor constraintEqualToAnchor:safeArea.leadingAnchor],
         [_tableView.trailingAnchor constraintEqualToAnchor:safeArea.trailingAnchor],
         [_tableView.bottomAnchor constraintEqualToAnchor:safeArea.bottomAnchor]
@@ -92,97 +96,34 @@
 @property (nonatomic, strong) NSArray<NSString *> *titles;
 @property (nonatomic, strong) UIView *coverView;
 @property (nonatomic) CGSize lastPageSize;
-
-// 自定义导航栏相关
-@property (nonatomic, strong) UIView *customNavigationBar;
-@property (nonatomic, strong) UIView *navigationContentView;
-@property (nonatomic, strong) UIButton *backButton;
 @end
 
 @implementation ObjcExmpleViewController
 
-#pragma mark - 自定义导航栏
-
 - (void)viewWillAppear:(BOOL)animated {
     [super viewWillAppear:animated];
-    // 隐藏系统导航栏
-    [self.navigationController setNavigationBarHidden:YES animated:animated];
-}
-
-- (void)viewWillDisappear:(BOOL)animated {
-    [super viewWillDisappear:animated];
-    // 恢复系统导航栏
     [self.navigationController setNavigationBarHidden:NO animated:animated];
 }
 
-- (void)setupCustomNavigationBar {
-    // 创建导航栏容器
-    self.customNavigationBar = [[UIView alloc] init];
-    self.customNavigationBar.backgroundColor = UIColor.systemBackgroundColor;
-    self.customNavigationBar.alpha = 0.0; // 初始透明，滚动时显示
-    [self.view addSubview:self.customNavigationBar];
-    
-    // 创建导航内容视图
-    self.navigationContentView = [[UIView alloc] init];
-    self.navigationContentView.backgroundColor = UIColor.clearColor;
-    [self.customNavigationBar addSubview:self.navigationContentView];
-    
-    // 创建标题标签
-    UILabel *titleLabel = [[UILabel alloc] init];
-    titleLabel.text = @"ObjC桥接示例";
-    titleLabel.font = [UIFont boldSystemFontOfSize:17];
-    titleLabel.textColor = UIColor.labelColor;
-    [self.navigationContentView addSubview:titleLabel];
-    
-    self.customNavigationBar.translatesAutoresizingMaskIntoConstraints = NO;
-    self.navigationContentView.translatesAutoresizingMaskIntoConstraints = NO;
-    titleLabel.translatesAutoresizingMaskIntoConstraints = NO;
-    UILayoutGuide *safeArea = self.view.safeAreaLayoutGuide;
-    UILayoutGuide *contentSafeArea = self.navigationContentView.safeAreaLayoutGuide;
-    [NSLayoutConstraint activateConstraints:@[
-        // 只有导航栏背景延伸到状态栏，标题及按钮使用安全区。
-        [self.customNavigationBar.topAnchor constraintEqualToAnchor:self.view.topAnchor],
-        [self.customNavigationBar.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
-        [self.customNavigationBar.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
-        [self.customNavigationBar.bottomAnchor constraintEqualToAnchor:self.navigationContentView.bottomAnchor],
-        [self.navigationContentView.topAnchor constraintEqualToAnchor:safeArea.topAnchor],
-        [self.navigationContentView.leadingAnchor constraintEqualToAnchor:safeArea.leadingAnchor],
-        [self.navigationContentView.trailingAnchor constraintEqualToAnchor:safeArea.trailingAnchor],
-        [self.navigationContentView.heightAnchor constraintEqualToConstant:44],
-        [titleLabel.centerXAnchor constraintEqualToAnchor:contentSafeArea.centerXAnchor],
-        [titleLabel.centerYAnchor constraintEqualToAnchor:contentSafeArea.centerYAnchor],
-        [titleLabel.widthAnchor constraintLessThanOrEqualToAnchor:contentSafeArea.widthAnchor constant:-112]
-    ]];
-}
-
-- (void)setupBackButton {
-    // 创建固定的返回按钮
-    self.backButton = [UIButton buttonWithType:UIButtonTypeSystem];
-    [self.backButton setImage:[UIImage systemImageNamed:@"chevron.left"] forState:UIControlStateNormal];
-    self.backButton.tintColor = UIColor.labelColor;
-    self.backButton.backgroundColor = UIColor.clearColor;
-    self.backButton.contentHorizontalAlignment = UIControlContentHorizontalAlignmentLeading;
-    [self.backButton addTarget:self action:@selector(backButtonTapped) forControlEvents:UIControlEventTouchUpInside];
-    
-    // 直接添加到控制器的view上，确保始终可见
-    [self.view addSubview:self.backButton];
-    self.backButton.translatesAutoresizingMaskIntoConstraints = NO;
-    [NSLayoutConstraint activateConstraints:@[
-        [self.backButton.leadingAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.leadingAnchor constant:16],
-        [self.backButton.centerYAnchor constraintEqualToAnchor:self.navigationContentView.safeAreaLayoutGuide.centerYAnchor],
-        [self.backButton.widthAnchor constraintEqualToConstant:40],
-        [self.backButton.heightAnchor constraintEqualToConstant:30]
-    ]];
-}
-
-- (void)backButtonTapped {
-    [self.navigationController popViewControllerAnimated:YES];
+- (void)updateNavigationBarWithProgress:(CGFloat)progress {
+    progress = MIN(MAX(progress, 0.0), 1.0);
+    UINavigationBarAppearance *appearance = [[UINavigationBarAppearance alloc] init];
+    [appearance configureWithTransparentBackground];
+    appearance.backgroundColor = [UIColor.systemBackgroundColor colorWithAlphaComponent:progress];
+    appearance.titleTextAttributes = @{NSForegroundColorAttributeName: [UIColor.labelColor colorWithAlphaComponent:progress]};
+    self.navigationItem.standardAppearance = appearance;
+    self.navigationItem.scrollEdgeAppearance = appearance;
+    self.navigationItem.compactAppearance = appearance;
+    self.navigationItem.compactScrollEdgeAppearance = appearance;
 }
 
 - (void)viewDidLoad {
     [super viewDidLoad];
     
-    self.view.backgroundColor = UIColor.whiteColor;
+    self.view.backgroundColor = UIColor.systemBackgroundColor;
+    self.extendedLayoutIncludesOpaqueBars = YES;
+    self.navigationItem.largeTitleDisplayMode = UINavigationItemLargeTitleDisplayModeNever;
+    [self updateNavigationBarWithProgress:0.0];
     
     // 设置标题数组
     self.titles = @[@"推荐", @"关注", @"热门", @"附近"];
@@ -190,6 +131,7 @@
     // 创建封面视图
     self.coverView = [[UIView alloc] init];
     self.coverView.backgroundColor = UIColor.systemPinkColor;
+    self.coverView.accessibilityIdentifier = @"objc.cover";
     
     // 添加标题标签
     UILabel *titleLabel = [[UILabel alloc] init];
@@ -213,8 +155,10 @@
     
     // 应用全局配置
     [[NestedPageConfig shared] applyConfigTo:self.pageViewControllerBridge.nestedPageViewController];
-    // 容器已从安全区顶部开始，吸顶位置只需避开自定义导航内容。
-    self.pageViewControllerBridge.stickyOffset = 44;
+    self.pageViewControllerBridge.stickyOffset = self.view.safeAreaInsets.top;
+    if (@available(iOS 26.0, *)) {
+        self.pageViewControllerBridge.containerScrollView.topEdgeEffect.hidden = YES;
+    }
     
     // 添加到父视图控制器
     [self.pageViewControllerBridge addToParentViewController:self];
@@ -222,22 +166,28 @@
     pageView.translatesAutoresizingMaskIntoConstraints = NO;
     UILayoutGuide *safeArea = self.view.safeAreaLayoutGuide;
     [NSLayoutConstraint activateConstraints:@[
-        [pageView.topAnchor constraintEqualToAnchor:safeArea.topAnchor],
+        // 与 Swift 头部缩放示例一致：封面延伸到屏幕顶部。
+        [pageView.topAnchor constraintEqualToAnchor:self.view.topAnchor],
         [pageView.leadingAnchor constraintEqualToAnchor:safeArea.leadingAnchor],
         [pageView.trailingAnchor constraintEqualToAnchor:safeArea.trailingAnchor],
         [pageView.bottomAnchor constraintEqualToAnchor:safeArea.bottomAnchor]
     ]];
     
-    // 设置自定义导航栏
-    [self setupCustomNavigationBar];
-    [self setupBackButton];
 }
 
 - (void)viewDidLayoutSubviews {
     [super viewDidLayoutSubviews];
-    CGSize size = self.pageViewControllerBridge.nestedPageViewController.view.bounds.size;
-    if (!CGSizeEqualToSize(size, self.lastPageSize)) {
+    UIView *pageView = self.pageViewControllerBridge.nestedPageViewController.view;
+    CGSize size = pageView.bounds.size;
+    CGFloat stickyOffset = self.view.safeAreaInsets.top;
+    if (self.navigationController.navigationBar != nil) {
+        CGRect navigationFrame = [self.navigationController.navigationBar convertRect:self.navigationController.navigationBar.bounds
+                                                                                toView:pageView];
+        stickyOffset = MAX(0, CGRectGetMaxY(navigationFrame));
+    }
+    if (!CGSizeEqualToSize(size, self.lastPageSize) || fabs(self.pageViewControllerBridge.stickyOffset - stickyOffset) > 0.5) {
         self.lastPageSize = size;
+        self.pageViewControllerBridge.stickyOffset = stickyOffset;
         // 安全区改变后同步已加载组件的内部布局。
         if (self.pageViewControllerBridge.nestedPageViewController.childViewControllers.count > 0) {
             [self.pageViewControllerBridge updateLayouts];
@@ -298,17 +248,11 @@ contentScrollViewDidScroll:(UIScrollView *)scrollView
               headerOffset:(CGFloat)headerOffset
                  isSticked:(BOOL)isSticked {
     
-    // 计算导航栏透明度
     CGFloat coverHeight = [self heightForCoverViewIn:pageViewController];
     CGFloat tabHeight = [self heightForTabStripIn:pageViewController];
     CGFloat headerHeight = coverHeight + tabHeight;
-    
-    // 注意：scrollView.contentOffset.y初始值为-headerHeight
-    CGFloat headerOffsetY = headerOffset;
-        
-    // 计算导航栏透明度
     CGFloat scrollDistance = MAX(1, headerHeight - self.pageViewControllerBridge.stickyOffset - tabHeight);
-    self.customNavigationBar.alpha = MIN(MAX(headerOffsetY / scrollDistance, 0.0), 1.0);
+    [self updateNavigationBarWithProgress:headerOffset / scrollDistance];
 }
 
 @end

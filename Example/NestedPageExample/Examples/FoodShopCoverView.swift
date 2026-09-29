@@ -2,6 +2,12 @@ import UIKit
 
 /// 本地绘制的暖色店铺封面，无网络图片依赖；底部信息卡与顶部品牌背景分层。
 final class FoodShopCoverView: UIView {
+    enum FulfillmentMode: Int {
+        case delivery, pickup
+    }
+
+    private(set) var fulfillmentMode: FulfillmentMode = .delivery
+    var onFulfillmentModeChanged: (() -> Void)?
     var topContentInset: CGFloat = 0 {
         didSet { if topContentInset != oldValue { setNeedsLayout() } }
     }
@@ -13,8 +19,11 @@ final class FoodShopCoverView: UIView {
     private let logo = UILabel()
     private let name = UILabel()
     private let details = UILabel()
+    private let fulfillmentControl = UISegmentedControl(items: ["外送", "自取"])
     private let delivery = UILabel()
+    private let serviceDetail = UILabel()
     private let offer = UILabel()
+    private let deliveryNote = UILabel()
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -38,6 +47,7 @@ final class FoodShopCoverView: UIView {
         information.backgroundColor = .systemBackground
         information.layer.cornerRadius = 16
         information.layer.cornerCurve = .continuous
+        information.accessibilityIdentifier = "food.shopInformation"
         logo.text = "巷口\n小馆"
         logo.numberOfLines = 2
         logo.textAlignment = .center
@@ -51,22 +61,84 @@ final class FoodShopCoverView: UIView {
         name.adjustsFontSizeToFitWidth = true
         name.minimumScaleFactor = 0.7
         name.accessibilityIdentifier = "food.shop"
-        details.text = "★ 4.9  ·  月售 3000+  ·  家常菜"
         details.textColor = .secondaryLabel
         details.font = .systemFont(ofSize: 11)
-        delivery.text = "约 30 分钟送达  ·  配送费 ¥2"
+        fulfillmentControl.selectedSegmentIndex = fulfillmentMode.rawValue
+        fulfillmentControl.selectedSegmentTintColor = .systemOrange.withAlphaComponent(0.22)
+        fulfillmentControl.setTitleTextAttributes([.font: UIFont.systemFont(ofSize: 14, weight: .semibold),
+                                                  .foregroundColor: UIColor.label], for: .selected)
+        fulfillmentControl.accessibilityIdentifier = "food.fulfillment"
+        fulfillmentControl.addTarget(self, action: #selector(changeFulfillmentMode), for: .valueChanged)
         delivery.font = .systemFont(ofSize: 12, weight: .medium)
-        offer.text = "  新客立减 ¥8   ·   满 30 减 6  "
+        delivery.numberOfLines = 0
+        delivery.accessibilityIdentifier = "food.serviceSummary"
+        serviceDetail.font = .systemFont(ofSize: 11)
+        serviceDetail.textColor = .secondaryLabel
+        serviceDetail.numberOfLines = 0
+        serviceDetail.accessibilityIdentifier = "food.serviceDetail"
         offer.font = .systemFont(ofSize: 11, weight: .medium)
         offer.textColor = .systemOrange
         offer.backgroundColor = .systemOrange.withAlphaComponent(0.10)
         offer.layer.cornerRadius = 5
         offer.clipsToBounds = true
+        offer.numberOfLines = 0
+        deliveryNote.text = "热饭热菜，骑手送到家 · 支持预约配送"
+        deliveryNote.font = .systemFont(ofSize: 11)
+        deliveryNote.textColor = .secondaryLabel
+        deliveryNote.numberOfLines = 0
         [ornament, slogan, tagline, information].forEach(addSubview)
-        [logo, name, details, delivery, offer].forEach(information.addSubview)
+
+        let titles = UIStackView(arrangedSubviews: [name, details])
+        titles.axis = .vertical
+        titles.spacing = 3
+        let identity = UIStackView(arrangedSubviews: [logo, titles])
+        identity.alignment = .center
+        identity.spacing = 10
+        let content = UIStackView(arrangedSubviews: [identity, fulfillmentControl, delivery, serviceDetail, offer, deliveryNote])
+        content.axis = .vertical
+        content.spacing = 10
+        content.translatesAutoresizingMaskIntoConstraints = false
+        information.addSubview(content)
+        NSLayoutConstraint.activate([
+            content.topAnchor.constraint(equalTo: information.topAnchor, constant: 12),
+            content.leadingAnchor.constraint(equalTo: information.leadingAnchor, constant: 12),
+            content.trailingAnchor.constraint(equalTo: information.trailingAnchor, constant: -12),
+            content.bottomAnchor.constraint(equalTo: information.bottomAnchor, constant: -12),
+            logo.widthAnchor.constraint(equalToConstant: 46),
+            logo.heightAnchor.constraint(equalToConstant: 46),
+            fulfillmentControl.heightAnchor.constraint(equalToConstant: 34)
+        ])
+        updateInformation()
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    /// 封面高度由导航栏、品牌区和信息卡的实际内容共同决定，窄屏换行时也不裁剪。
+    func preferredHeight(for width: CGFloat) -> CGFloat {
+        let size = information.systemLayoutSizeFitting(
+            CGSize(width: max(1, width - 24), height: UIView.layoutFittingCompressedSize.height),
+            withHorizontalFittingPriority: .required, verticalFittingPriority: .fittingSizeLevel
+        )
+        return ceil(topContentInset + 24 + 68 + size.height + 16)
+    }
+
+    @objc private func changeFulfillmentMode() {
+        guard let mode = FulfillmentMode(rawValue: fulfillmentControl.selectedSegmentIndex),
+              mode != fulfillmentMode else { return }
+        fulfillmentMode = mode
+        updateInformation()
+        onFulfillmentModeChanged?()
+    }
+
+    private func updateInformation() {
+        let isDelivery = fulfillmentMode == .delivery
+        details.text = isDelivery ? "★ 4.9  ·  月售 3000+  ·  家常菜" : "★ 4.9  ·  现点现做  ·  支持打包"
+        delivery.text = isDelivery ? "约 30 分钟送达  ·  配送费 ¥2" : "约 15 分钟可取  ·  免配送费"
+        serviceDetail.text = isDelivery ? "满 ¥20 起送  ·  配送范围 3 km" : "幸福路 18 号  ·  距您 800 m"
+        offer.text = isDelivery ? "  新客立减 ¥8   ·   满 30 减 6  " : "  到店自取享 9 折   ·   无需排队  "
+        deliveryNote.isHidden = !isDelivery
+        setNeedsLayout()
+    }
 
     override func layoutSubviews() {
         super.layoutSubviews()
@@ -76,12 +148,6 @@ final class FoodShopCoverView: UIView {
         slogan.frame = CGRect(x: 20, y: sloganTop, width: max(0, bounds.width - 132), height: 32)
         tagline.frame = CGRect(x: 21, y: sloganTop + 35, width: max(0, bounds.width - 132), height: 16)
         let informationTop = sloganTop + 68
-        information.frame = CGRect(x: 12, y: informationTop, width: max(0, bounds.width - 24), height: max(0, bounds.height - informationTop - 28))
-        logo.frame = CGRect(x: 12, y: 12, width: 46, height: 46)
-        let textWidth = max(0, information.bounds.width - 82)
-        name.frame = CGRect(x: 68, y: 12, width: textWidth, height: 25)
-        details.frame = CGRect(x: 68, y: 40, width: textWidth, height: 16)
-        delivery.frame = CGRect(x: 12, y: 66, width: information.bounds.width - 24, height: 17)
-        offer.frame = CGRect(x: 12, y: 90, width: min(192, information.bounds.width - 24), height: 20)
+        information.frame = CGRect(x: 12, y: informationTop, width: max(0, bounds.width - 24), height: max(0, bounds.height - informationTop - 16))
     }
 }
