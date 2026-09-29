@@ -371,7 +371,18 @@ final class FoodOrderingTests: XCTestCase {
         observation.invalidate()
     }
 
-    func testOrderIndicatorCentersOnTitleExcludingArrow() throws {
+    private func tabTitleCenter(in tab: FoodOrderingTabStrip, at index: Int) throws -> CGFloat {
+        let cell = try XCTUnwrap(tab.collectionView.cellForItem(at: IndexPath(item: index, section: 0)) as? JXCategoryTitleImageCell)
+        cell.layoutIfNeeded()
+        let label = try XCTUnwrap(cell.titleLabel)
+        let labelCenter = label.convert(label.bounds, to: tab.collectionView).midX
+        guard index == 1 else { return labelCenter }
+        let text = try XCTUnwrap(label.attributedText)
+        let titleWidth = text.attributedSubstring(from: NSRange(location: 0, length: 2)).size().width
+        return labelCenter - (text.size().width - titleWidth) / 2
+    }
+
+    func testTabIndicatorsCenterOnTitlesExcludingArrowAndReviewCount() throws {
         let tab = FoodOrderingTabStrip(frame: CGRect(x: 0, y: 0, width: 390, height: 44))
         tab.layoutIfNeeded()
         tab.collectionView.layoutIfNeeded()
@@ -391,28 +402,27 @@ final class FoodOrderingTests: XCTestCase {
                 // 从其他 Tab 点击回来、初始化和尺寸变化后都应对齐文案。
                 for index in [1, 2, 0] {
                     UIView.performWithoutAnimation { tab.selectItem(at: index) }
-                    let cell = try XCTUnwrap(tab.collectionView.cellForItem(at: IndexPath(item: index, section: 0)) as? JXCategoryTitleImageCell)
-                    cell.layoutIfNeeded()
-                    let expectedX = index == 0
-                        ? cell.titleLabel.convert(cell.titleLabel.bounds, to: tab.collectionView).midX
-                        : cell.frame.midX
+                    let expectedX = try tabTitleCenter(in: tab, at: index)
                     XCTAssertEqual(line.frame.midX, expectedX, accuracy: 0.5)
                 }
 
-                let first = try XCTUnwrap(tab.collectionView.cellForItem(at: IndexPath(item: 0, section: 0)) as? JXCategoryTitleImageCell)
-                let review = try XCTUnwrap(tab.collectionView.cellForItem(at: IndexPath(item: 1, section: 0)))
-                let titleX = first.titleLabel.convert(first.titleLabel.bounds, to: tab.collectionView).midX
-                let model = JXCategoryIndicatorParamsModel()
-                model.leftIndex = 0
-                model.rightIndex = 1
-                model.leftCellFrame = first.frame
-                model.rightCellFrame = review.frame
-                for progress: CGFloat in [0, 0.25, 0.5, 0.75, 1, 0.5, 0] {
-                    model.percent = progress
-                    line.jx_contentScrollViewDidScroll(model)
-                    XCTAssertEqual(line.frame.midX, titleX + (review.frame.midX - titleX) * progress, accuracy: 0.5)
-                    XCTAssertEqual(model.leftCellFrame, first.frame)
-                    XCTAssertEqual(model.rightCellFrame, review.frame)
+                for leftIndex in 0..<2 {
+                    let leftFrame = tab.getTargetCellFrame(leftIndex)
+                    let rightFrame = tab.getTargetCellFrame(leftIndex + 1)
+                    let leftX = try tabTitleCenter(in: tab, at: leftIndex)
+                    let rightX = try tabTitleCenter(in: tab, at: leftIndex + 1)
+                    let model = JXCategoryIndicatorParamsModel()
+                    model.leftIndex = leftIndex
+                    model.rightIndex = leftIndex + 1
+                    model.leftCellFrame = leftFrame
+                    model.rightCellFrame = rightFrame
+                    for progress: CGFloat in [0, 0.25, 0.5, 0.75, 1, 0.5, 0] {
+                        model.percent = progress
+                        line.jx_contentScrollViewDidScroll(model)
+                        XCTAssertEqual(line.frame.midX, leftX + (rightX - leftX) * progress, accuracy: 0.5)
+                        XCTAssertEqual(model.leftCellFrame, leftFrame)
+                        XCTAssertEqual(model.rightCellFrame, rightFrame)
+                    }
                 }
             }
         }
@@ -439,9 +449,8 @@ final class FoodOrderingTests: XCTestCase {
                     XCTAssertEqual(tab.selectedIndex, selectedIndex)
                     let left = Int(floor(progress))
                     let right = min(left + 1, 2)
-                    let titleOffset: CGFloat = showsArrow ? 9 : 0
-                    let leftX = tab.getTargetCellFrame(left).midX - (left == 0 ? titleOffset : 0)
-                    let rightX = tab.getTargetCellFrame(right).midX - (right == 0 ? titleOffset : 0)
+                    let leftX = try tabTitleCenter(in: tab, at: left)
+                    let rightX = try tabTitleCenter(in: tab, at: right)
                     XCTAssertEqual(line.frame.midX, leftX + (rightX - leftX) * (progress - CGFloat(left)), accuracy: 0.5)
                 }
                 XCTAssertEqual(offsetChanges, 0)

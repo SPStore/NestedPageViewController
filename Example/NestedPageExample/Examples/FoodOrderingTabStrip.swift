@@ -4,9 +4,17 @@ import JXCategoryView
 /// 基于已接入的 JXCategoryView 定制外卖 Tab，分页与指示器仍由第三方组件负责。
 final class FoodOrderingTabStrip: JXCategoryTitleImageView {
     static let reviewCount = "1710"
+    static let reviewCountFont = UIFont.systemFont(ofSize: 10)
     private let topImage = UIImage(systemName: "arrow.up", withConfiguration: UIImage.SymbolConfiguration(pointSize: 13, weight: .semibold))
     private let titleIndicator = FoodTitleAlignedIndicatorLineView()
     private var arrowWidth: CGFloat { showsBackToTop ? imageSize.width + titleImageSpacing : 0 }
+    private var reviewTrailingWidth: CGFloat {
+        let isSelected = dataSource?.dropFirst().first?.isSelected ?? (selectedIndex == 1)
+        let font = (isSelected ? titleSelectedFont : titleFont) ?? UIFont.systemFont(ofSize: 18)
+        // 空格沿用主标题字号，评价数使用独立小字号；两者都不参与跟踪器居中。
+        return (" " as NSString).size(withAttributes: [.font: font]).width
+            + (Self.reviewCount as NSString).size(withAttributes: [.font: Self.reviewCountFont]).width
+    }
 
     var showsBackToTop = false {
         didSet {
@@ -15,7 +23,6 @@ final class FoodOrderingTabStrip: JXCategoryTitleImageView {
             imageInfoArray = [image, NSNull(), NSNull()]
             selectedImageInfoArray = imageInfoArray
             imageTypes[0] = NSNumber(value: (showsBackToTop ? JXCategoryTitleImageType.rightImage : .onlyTitle).rawValue)
-            titleIndicator.firstItemTrailingWidth = arrowWidth
             guard let first = dataSource?.first else { return }
             // 非吸顶时不占位，吸顶后才加上箭头及间距。只更新宽度模型与 Tab 布局，
             // 不调用 reloadData / refreshState，避免把正在横滑的分页吸回选中页。
@@ -50,6 +57,14 @@ final class FoodOrderingTabStrip: JXCategoryTitleImageView {
             imageView?.tintColor = .label
         }
         let line = titleIndicator
+        line.trailingWidthAtIndex = { [weak self] index in
+            guard let self else { return 0 }
+            switch index {
+            case 0: return self.arrowWidth
+            case 1: return self.reviewTrailingWidth
+            default: return 0
+            }
+        }
         line.indicatorColor = .systemOrange
         line.indicatorWidth = 20
         line.indicatorHeight = 3
@@ -95,12 +110,12 @@ final class FoodOrderingTabStrip: JXCategoryTitleImageView {
     }
 }
 
-/// 首项有箭头时扣除箭头宽度来计算文字中心；其余项沿用 JXCategoryView 的居中规则。
+/// 扣除主标题右侧的箭头、评价数等附加内容，点击及横滑均按主标题中心定位。
 private final class FoodTitleAlignedIndicatorLineView: JXCategoryIndicatorLineView {
-    var firstItemTrailingWidth: CGFloat = 0
+    var trailingWidthAtIndex: ((Int) -> CGFloat)?
 
     private func titleCenteredFrame(_ frame: CGRect, at index: Int) -> CGRect {
-        index == 0 ? frame.offsetBy(dx: -firstItemTrailingWidth / 2, dy: 0) : frame
+        frame.offsetBy(dx: -(trailingWidthAtIndex?(index) ?? 0) / 2, dy: 0)
     }
 
     override func jx_refreshState(_ model: JXCategoryIndicatorParamsModel!) {
@@ -140,7 +155,7 @@ private final class FoodOrderingTabCell: JXCategoryTitleImageCell {
         if model.index == 1 {
             let text = NSMutableAttributedString(string: "评价 ", attributes: [.font: titleLabel.font!])
             text.append(NSAttributedString(string: FoodOrderingTabStrip.reviewCount, attributes: [
-                .font: UIFont.systemFont(ofSize: 10), .foregroundColor: UIColor.secondaryLabel
+                .font: FoodOrderingTabStrip.reviewCountFont, .foregroundColor: UIColor.secondaryLabel
             ]))
             titleLabel.attributedText = text
             accessibilityLabel = "评价"
