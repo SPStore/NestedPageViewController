@@ -64,6 +64,67 @@ final class FoodCarouselUITests: XCTestCase {
         capture("右栏单独收起小轮播")
     }
 
+    func testBothCarouselsKeepPagingPriorityAtEdgesAndOnDiagonalDrags() {
+        for identifier in ["food.sharedCarousel", "food.productCarousel"] {
+            if identifier == "food.productCarousel" {
+                // 由左栏收起共享区域，右侧轮播仍在其独立内容顶部。
+                let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.10, dy: 0.82))
+                let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.10, dy: 0.22))
+                start.press(forDuration: 0.05, thenDragTo: end, withVelocity: 180, thenHoldForDuration: 0.2)
+            }
+            let carousel = app.scrollViews[identifier]
+            XCTAssertTrue(carousel.isHittable)
+            // 从第一页向外拖；再到末页继续左拖，边缘也不能交给横向分页。
+            carousel.swipeRight(velocity: .slow)
+            assertMenuRemainsVisible()
+            for _ in 0..<4 {
+                carousel.swipeLeft(velocity: .slow)
+                assertMenuRemainsVisible()
+            }
+            // 向下斜拖避免把轮播卷出屏幕，覆盖横向占优和纵向占优两种起手。
+            for delta in [CGVector(dx: -150, dy: 90), CGVector(dx: -130, dy: 150)] {
+                let start = carousel.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.35))
+                start.press(forDuration: 0.05, thenDragTo: start.withOffset(delta), withVelocity: 220, thenHoldForDuration: 0.2)
+                assertMenuRemainsVisible()
+            }
+            capture("\(identifier)-边缘与斜拖不切页")
+            if identifier == "food.productCarousel" {
+                let initialY = carousel.frame.minY
+                let start = carousel.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.8))
+                start.press(forDuration: 0.05, thenDragTo: start.withOffset(CGVector(dx: 0, dy: -70)), withVelocity: 120, thenHoldForDuration: 0.2)
+                XCTAssertLessThan(carousel.frame.minY, initialY - 30)
+                assertMenuRemainsVisible()
+            }
+        }
+    }
+
+    func testPartiallyVisibleCarouselKeepsPriorityAndAllowsSystemBack() {
+        let leftStart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.10, dy: 0.80))
+        leftStart.press(forDuration: 0.05, thenDragTo: leftStart.withOffset(CGVector(dx: 0, dy: -300)), withVelocity: 180, thenHoldForDuration: 0.2)
+        let carousel = app.scrollViews["food.sharedCarousel"]
+        let tab = app.buttons["点餐"]
+        XCTAssertTrue(carousel.isHittable)
+        XCTAssertLessThan(carousel.frame.minY, tab.frame.maxY)
+        let firstCard = app.descendants(matching: .any)["food.sharedCarousel.card.0"].firstMatch
+        let initialX = firstCard.frame.minX
+        let origin = app.coordinate(withNormalizedOffset: .zero)
+        let start = origin.withOffset(CGVector(dx: app.frame.width * 0.8, dy: tab.frame.maxY + 40))
+        start.press(forDuration: 0.05, thenDragTo: start.withOffset(CGVector(dx: -220, dy: 15)), withVelocity: 220, thenHoldForDuration: 0.2)
+        XCTAssertLessThan(firstCard.frame.minX, initialX - 30)
+        assertMenuRemainsVisible()
+
+        // 轮播优先于分页，但不能吞掉导航控制器的系统边缘返回。
+        let edge = origin.withOffset(CGVector(dx: 2, dy: tab.frame.maxY + 40))
+        edge.press(forDuration: 0.05, thenDragTo: edge.withOffset(CGVector(dx: app.frame.width * 0.8, dy: 0)), withVelocity: 400, thenHoldForDuration: 0.2)
+        XCTAssertFalse(app.navigationBars["外卖点餐双列表"].exists)
+    }
+
+    private func assertMenuRemainsVisible(file: StaticString = #filePath, line: UInt = #line) {
+        XCTAssertTrue(app.collectionViews["food.products"].isHittable, file: file, line: line)
+        XCTAssertFalse(app.tables["food.reviews"].isHittable, file: file, line: line)
+        XCTAssertEqual(app.collectionViews["food.products"].frame.minX, 0, accuracy: 2, file: file, line: line)
+    }
+
     func testTabSwitchAndLayoutKeepProductReadingPosition() {
         app.collectionViews["food.products"].swipeUp()
         let visibleProduct = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "food.add.")).allElementsBoundByIndex.first { $0.isHittable }!

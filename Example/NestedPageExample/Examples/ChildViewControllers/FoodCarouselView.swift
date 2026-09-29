@@ -6,6 +6,7 @@ final class FoodCarouselView: UIScrollView {
     private let style: Style
     private let cards: [FoodPromoCard]
     private var lastSize = CGSize.zero
+    private let pagingGuard = FoodCarouselPagingGuard(target: nil, action: nil)
 
     init(style: Style) {
         self.style = style
@@ -34,6 +35,12 @@ final class FoodCarouselView: UIScrollView {
         decelerationRate = .fast
         let identifier = style == .shared ? "food.sharedCarousel" : "food.productCarousel"
         accessibilityIdentifier = identifier
+        // 独立于轮播的横纵方向判断：只要从轮播内起拖，就不让外层横向分页接手。
+        pagingGuard.name = "food.carouselPagingGuard"
+        pagingGuard.cancelsTouchesInView = false
+        pagingGuard.delaysTouchesBegan = false
+        pagingGuard.delaysTouchesEnded = false
+        addGestureRecognizer(pagingGuard)
         for (index, card) in cards.enumerated() {
             card.accessibilityIdentifier = "\(identifier).card.\(index)"
             addSubview(card)
@@ -41,6 +48,11 @@ final class FoodCarouselView: UIScrollView {
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    func prioritizeScrolling(over pagingScrollView: UIScrollView) {
+        pagingGuard.pagingPan = pagingScrollView.panGestureRecognizer
+        pagingScrollView.panGestureRecognizer.require(toFail: pagingGuard)
+    }
 
     override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
         if gestureRecognizer === panGestureRecognizer {
@@ -70,6 +82,20 @@ final class FoodCarouselView: UIScrollView {
     func stopMotion() {
         if #available(iOS 17.4, *) { stopScrollingAndZooming() }
         else { setContentOffset(contentOffset, animated: false) }
+    }
+}
+
+/// 不处理位移，只排除外层横向翻页；与轮播横拖、商品纵拖及系统返回手势并行。
+/// 不能只等待轮播自己的 pan：它在纵向 / 斜向起手时会失败，使外层分页重新获得识别机会。
+private final class FoodCarouselPagingGuard: UIPanGestureRecognizer {
+    weak var pagingPan: UIPanGestureRecognizer?
+
+    override func canPrevent(_ preventedGestureRecognizer: UIGestureRecognizer) -> Bool {
+        preventedGestureRecognizer === pagingPan
+    }
+
+    override func canBePrevented(by preventingGestureRecognizer: UIGestureRecognizer) -> Bool {
+        false
     }
 }
 

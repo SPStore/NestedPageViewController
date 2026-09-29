@@ -33,14 +33,14 @@ final class FoodMenuViewController: UIViewController, NestedPageScrollable {
             stopMotion()
             selectedCategory = 0
             products.reloadData()
-            categories.reloadData()
+            categoryTableView.reloadData()
             view.setNeedsLayout()
         }
     }
     private let allCategories = ["招牌热销", "超值套餐", "下饭小炒", "鲜香炖菜", "时令蔬菜", "经典盖饭", "面食米粉", "暖心汤品", "香酥小食", "清爽凉菜", "精品主食", "现制饮品", "甜品水果", "儿童餐", "双人分享", "加料专区"]
     private var names: [String] { usesShortCategories ? Array(allCategories.prefix(4)) : allCategories }
     private let categoryContainer = UIView()
-    private let categories: UITableView
+    private let categoryTableView: UITableView
     private let sharedCarousel = FoodCarouselView(style: .shared)
     private let productCarousel = FoodCarouselView(style: .products)
     private let productLayout = FoodProductLayout()
@@ -48,7 +48,7 @@ final class FoodMenuViewController: UIViewController, NestedPageScrollable {
     var nestedPageContentScrollView: UIScrollView { products }
 
     init(categoryTable: UITableView = UITableView(frame: .zero, style: .plain), showsCarousels: Bool = true) {
-        categories = categoryTable
+        categoryTableView = categoryTable
         self.showsCarousels = showsCarousels
         let initialHeight = Self.coverHeight + Self.tabHeight + (showsCarousels ? Self.sharedCarouselHeight : 0)
         visibleSharedHeight = initialHeight
@@ -76,9 +76,11 @@ final class FoodMenuViewController: UIViewController, NestedPageScrollable {
         view.addSubview(products)
 
         if showsCarousels {
-            // 轮播横拖优先于外层横向分页，纵拖则交给商品列表；即使轮播到边缘也不误切 Tab。
+            // 轮播内起拖时排除外层横向分页，纵拖仍交给商品列表；边缘和斜拖也不误切 Tab。
             for carousel in [sharedCarousel, productCarousel] {
-                pager?.containerScrollView.panGestureRecognizer.require(toFail: carousel.panGestureRecognizer)
+                if let pagingScrollView = pager?.containerScrollView {
+                    carousel.prioritizeScrolling(over: pagingScrollView)
+                }
                 // 不对商品列表的纵向 pan 建立同样的等待关系，否则轮播区域的纵拖会被阻断。
                 if let popGesture = navigationController?.interactivePopGestureRecognizer {
                     carousel.panGestureRecognizer.require(toFail: popGesture)
@@ -90,23 +92,23 @@ final class FoodMenuViewController: UIViewController, NestedPageScrollable {
         categoryContainer.clipsToBounds = true
         categoryContainer.backgroundColor = .secondarySystemBackground
         view.addSubview(categoryContainer)
-        categories.backgroundColor = .secondarySystemBackground
-        categories.dataSource = self
-        categories.delegate = self
-        categories.rowHeight = 60
-        categories.estimatedRowHeight = 0
-        categories.separatorStyle = .none
-        categories.showsVerticalScrollIndicator = false
-        categories.contentInsetAdjustmentBehavior = .never
-        categories.scrollsToTop = false
-        categories.bounces = false
-        categories.alwaysBounceVertical = false
-        categories.accessibilityIdentifier = "food.categories"
-        categories.contentInset.top = initialSharedHeight
-        categories.contentOffset.y = -initialSharedHeight
-        categoryContainer.addSubview(categories)
+        categoryTableView.backgroundColor = .secondarySystemBackground
+        categoryTableView.dataSource = self
+        categoryTableView.delegate = self
+        categoryTableView.rowHeight = 60
+        categoryTableView.estimatedRowHeight = 0
+        categoryTableView.separatorStyle = .none
+        categoryTableView.showsVerticalScrollIndicator = false
+        categoryTableView.contentInsetAdjustmentBehavior = .never
+        categoryTableView.scrollsToTop = false
+        categoryTableView.bounces = false
+        categoryTableView.alwaysBounceVertical = false
+        categoryTableView.accessibilityIdentifier = "food.categories"
+        categoryTableView.contentInset.top = initialSharedHeight
+        categoryTableView.contentOffset.y = -initialSharedHeight
+        categoryContainer.addSubview(categoryTableView)
         if let popGesture = navigationController?.interactivePopGestureRecognizer {
-            categories.panGestureRecognizer.require(toFail: popGesture)
+            categoryTableView.panGestureRecognizer.require(toFail: popGesture)
         }
         // 非当前页不会收到主列表 delegate 回调。横向滚动开始即停止分类栏惯性。
         pagingObservation = pager?.containerScrollView.observe(\.contentOffset, options: [.new]) { [weak self] _, _ in
@@ -150,7 +152,7 @@ final class FoodMenuViewController: UIViewController, NestedPageScrollable {
         // 右侧驱动：只同步店铺 + 公共轮播的位移，保留分类自己的阅读位置。
         // 左侧驱动：这部分位移已经包含在 UIKit 的原生 offset 中，不能再加一次。
         if !isDrivingFromCategories && abs(delta) > 0.001 {
-            setCategoryOffset(categories.contentOffset.y + delta)
+            setCategoryOffset(categoryTableView.contentOffset.y + delta)
         }
         layoutCategoryViewport()
         productLayout.visibleHeaderHeight = newHeight
@@ -164,8 +166,8 @@ final class FoodMenuViewController: UIViewController, NestedPageScrollable {
         categoryContainer.frame = CGRect(x: 0, y: visibleSharedHeight, width: categoryWidth, height: max(0, view.bounds.height - visibleSharedHeight))
         // 容器向上移动多少，内部列表就向下补偿多少：列表在根视图中的原点始终为 0。
         // bounds 高度不随头部折叠变化，避免拖拽中改变 UIKit 的减速几何。
-        categories.frame = CGRect(x: 0, y: -visibleSharedHeight, width: categoryWidth, height: view.bounds.height)
-        categoryOffset = categories.contentOffset.y
+        categoryTableView.frame = CGRect(x: 0, y: -visibleSharedHeight, width: categoryWidth, height: view.bounds.height)
+        categoryOffset = categoryTableView.contentOffset.y
     }
 
     private func updateCategoryInsets() {
@@ -175,29 +177,29 @@ final class FoodMenuViewController: UIViewController, NestedPageScrollable {
         // keepsContentScrollPosition 开启后，头部可以展开而商品仍在深处；不能用“未吸顶”推断右侧已回顶。
         let mayExpandHeader = productDepth <= 0.5
         let top = mayExpandHeader ? initialSharedHeight : visibleSharedHeight
-        let bottom = max(view.safeAreaInsets.bottom, view.bounds.height - categories.contentSize.height - Self.tabHeight)
+        let bottom = max(view.safeAreaInsets.bottom, view.bounds.height - categoryTableView.contentSize.height - Self.tabHeight)
         let inset = UIEdgeInsets(top: top, left: 0, bottom: bottom, right: 0)
-        if categories.contentInset != inset {
-            let offset = categories.contentOffset
-            categories.contentInset = inset
-            if categories.contentOffset != offset { categories.contentOffset = offset }
+        if categoryTableView.contentInset != inset {
+            let offset = categoryTableView.contentOffset
+            categoryTableView.contentInset = inset
+            if categoryTableView.contentOffset != offset { categoryTableView.contentOffset = offset }
         }
-        categoryOffset = categories.contentOffset.y
+        categoryOffset = categoryTableView.contentOffset.y
     }
 
     private func setCategoryOffset(_ value: CGFloat) {
         isUpdatingCategories = true
-        categories.setContentOffset(CGPoint(x: 0, y: value), animated: false)
-        categoryOffset = categories.contentOffset.y
+        categoryTableView.setContentOffset(CGPoint(x: 0, y: value), animated: false)
+        categoryOffset = categoryTableView.contentOffset.y
         isUpdatingCategories = false
     }
 
     private func categoriesDidScroll() {
         guard !isUpdatingCategories else { return }
         let previous = categoryOffset
-        categoryOffset = categories.contentOffset.y
+        categoryOffset = categoryTableView.contentOffset.y
         guard pager?.currentIndex == 0,
-              categories.isDragging || categories.isDecelerating else { return }
+              categoryTableView.isDragging || categoryTableView.isDecelerating else { return }
         let delta = categoryOffset - previous
         let localPosition = max(0, previous + visibleSharedHeight)
         let consumed: CGFloat
@@ -215,7 +217,7 @@ final class FoodMenuViewController: UIViewController, NestedPageScrollable {
         isDrivingFromCategories = true
         products.setContentOffset(CGPoint(x: 0, y: products.contentOffset.y + consumed), animated: false)
         isDrivingFromCategories = false
-        categoryOffset = categories.contentOffset.y
+        categoryOffset = categoryTableView.contentOffset.y
     }
 
     func resetCategoryPosition() {
@@ -225,11 +227,11 @@ final class FoodMenuViewController: UIViewController, NestedPageScrollable {
     }
 
     private func stopCategoryMotion() {
-        if categories.isDecelerating {
-            if #available(iOS 17.4, *) { categories.stopScrollingAndZooming() }
-            else { categories.setContentOffset(categories.contentOffset, animated: false) }
+        if categoryTableView.isDecelerating {
+            if #available(iOS 17.4, *) { categoryTableView.stopScrollingAndZooming() }
+            else { categoryTableView.setContentOffset(categoryTableView.contentOffset, animated: false) }
         }
-        categoryOffset = categories.contentOffset.y
+        categoryOffset = categoryTableView.contentOffset.y
     }
 
     func stopMotion() {
@@ -247,10 +249,10 @@ final class FoodMenuViewController: UIViewController, NestedPageScrollable {
     private func selectCategory(at section: Int) {
         let index = IndexPath(row: section, section: 0)
         // 程序化联动显式清掉旧选中项，避免快速更新或布局期间留下多个高亮。
-        for previous in categories.indexPathsForSelectedRows ?? [] where previous != index {
-            categories.deselectRow(at: previous, animated: false)
+        for previous in categoryTableView.indexPathsForSelectedRows ?? [] where previous != index {
+            categoryTableView.deselectRow(at: previous, animated: false)
         }
-        categories.selectRow(at: index, animated: false, scrollPosition: .none)
+        categoryTableView.selectRow(at: index, animated: false, scrollPosition: .none)
     }
 
     private func updateSelectedCategory() {
@@ -265,16 +267,16 @@ final class FoodMenuViewController: UIViewController, NestedPageScrollable {
             return y <= readingY
         } ?? 0
         let index = IndexPath(row: section, section: 0)
-        guard section != selectedCategory || categories.indexPathsForSelectedRows != [index] else { return }
+        guard section != selectedCategory || categoryTableView.indexPathsForSelectedRows != [index] else { return }
         selectedCategory = section
         selectCategory(at: section)
         // 用户正在拖分类时不抢它的位置。否则仅在选中项被裁剪时把它移入可见区域。
-        guard !categories.isDragging, !categories.isDecelerating, !isDrivingFromCategories else { return }
-        let row = categories.rectForRow(at: index)
-        let top = categories.contentOffset.y + visibleSharedHeight
-        let bottom = categories.contentOffset.y + categories.bounds.height
+        guard !categoryTableView.isDragging, !categoryTableView.isDecelerating, !isDrivingFromCategories else { return }
+        let row = categoryTableView.rectForRow(at: index)
+        let top = categoryTableView.contentOffset.y + visibleSharedHeight
+        let bottom = categoryTableView.contentOffset.y + categoryTableView.bounds.height
         if row.minY < top { setCategoryOffset(row.minY - visibleSharedHeight) }
-        else if row.maxY > bottom { setCategoryOffset(row.maxY - categories.bounds.height) }
+        else if row.maxY > bottom { setCategoryOffset(row.maxY - categoryTableView.bounds.height) }
     }
 
 }
@@ -348,7 +350,7 @@ extension FoodMenuViewController: UITableViewDataSource, UITableViewDelegate, UI
         return header
     }
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
-        if scrollView === categories { categoriesDidScroll() }
+        if scrollView === categoryTableView { categoriesDidScroll() }
         else { updateSelectedCategory() }
     }
     func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
@@ -357,7 +359,7 @@ extension FoodMenuViewController: UITableViewDataSource, UITableViewDelegate, UI
         else {
             if #available(iOS 17.4, *) { products.stopScrollingAndZooming() }
             else { products.setContentOffset(products.contentOffset, animated: false) }
-            categoryOffset = categories.contentOffset.y
+            categoryOffset = categoryTableView.contentOffset.y
         }
     }
     func scrollViewDidEndScrollingAnimation(_ scrollView: UIScrollView) {

@@ -224,6 +224,23 @@ final class FoodOrderingTests: XCTestCase {
         XCTAssertEqual(f.host.containerScrollView.contentOffset, pageOffset)
     }
 
+    func testBothCarouselsExcludeOnlyPagingGestures() throws {
+        let f = FoodFixture(carousels: true)
+        for section in 0..<2 {
+            let carousel = try XCTUnwrap(f.products.cellForItem(at: IndexPath(item: 0, section: section))?.contentView.subviews.first as? FoodCarouselView)
+            let pagingGuard = try XCTUnwrap(carousel.gestureRecognizers?.first { $0.name == "food.carouselPagingGuard" })
+            XCTAssertTrue(pagingGuard.canPrevent(f.host.containerScrollView.panGestureRecognizer))
+            XCTAssertFalse(pagingGuard.canPrevent(carousel.panGestureRecognizer))
+            XCTAssertFalse(pagingGuard.canPrevent(f.products.panGestureRecognizer))
+            XCTAssertFalse(pagingGuard.canPrevent(UIScreenEdgePanGestureRecognizer()))
+            XCTAssertFalse(pagingGuard.canBePrevented(by: carousel.panGestureRecognizer))
+            XCTAssertFalse(pagingGuard.canBePrevented(by: f.products.panGestureRecognizer))
+            XCTAssertFalse(pagingGuard.cancelsTouchesInView)
+            XCTAssertFalse(pagingGuard.delaysTouchesBegan)
+            XCTAssertFalse(pagingGuard.delaysTouchesEnded)
+        }
+    }
+
     func testLeftDragConsumesCoverThenSharedCarouselThenOnlyCategories() {
         let f = FoodFixture(carousels: true)
         f.moveCategories(by: 200)
