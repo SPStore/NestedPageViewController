@@ -395,7 +395,9 @@ private final class DualScrollFixture: NSObject, NestedPageViewControllerDataSou
     deinit { window.isHidden = true }
     func moveSecondary(by delta: CGFloat) {
         page.secondary.simulatesDragging = true
+        page.secondary.simulatedPan.simulatedState = .changed
         page.secondary.contentOffset.y += delta
+        page.secondary.simulatedPan.simulatedState = .possible
         page.secondary.simulatesDragging = false
     }
     func synchronizeHeader() {
@@ -456,8 +458,19 @@ private final class DualScrollOtherPage: UIViewController, NestedPageScrollable 
 private final class DualScrollTestScrollView: UIScrollView {
     var simulatesDragging = false
     var simulatesTracking = false
+    let simulatedPan = DualScrollTestPanGestureRecognizer()
+    override var panGestureRecognizer: UIPanGestureRecognizer { simulatedPan }
     override var isDragging: Bool { simulatesDragging || super.isDragging }
     override var isTracking: Bool { simulatesTracking || super.isTracking }
+}
+
+/// 将手指手势状态与 UIScrollView 的 dragging / decelerating 标记独立模拟。
+final class DualScrollTestPanGestureRecognizer: UIPanGestureRecognizer {
+    var simulatedState: UIGestureRecognizer.State = .possible
+    override var state: UIGestureRecognizer.State {
+        get { simulatedState }
+        set { simulatedState = newValue }
+    }
 }
 
 private final class DualScrollDelegateProbe: NSObject, UIScrollViewDelegate {

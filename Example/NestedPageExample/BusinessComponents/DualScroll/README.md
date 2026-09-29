@@ -4,7 +4,7 @@
 
 ## 职责
 
-- `NestedPageDualScrollCoordinator`：共享位移分配、副列表 inset 与阅读位置同步、短内容补足、运动停止和横向手势优先级。
+- `NestedPageDualScrollCoordinator`：共享位移分配、副列表 inset 与阅读位置同步、短内容补足、运动停止和横向手势优先级。仅在 Tab 吸顶后，副列表向下减速不再带动共享区，到当前可见区域顶部就停止；向上减速、非吸顶时的减速及手指拖拽仍正常联动。
 - `NestedPageDualScrollView`：主列表全宽，副列表位于左侧裁剪容器；维持副列表原点和高度，保留原生拖动 / 减速。
 - `NestedPagePagingGestureGuard`：内部辅助，只排除外层横向分页，不驱动 offset。
 

@@ -219,6 +219,20 @@ final class NestedPageDualScrollCoordinator {
               pager.viewController(at: pager.currentIndex)?.nestedPageContentScrollView === primary,
               secondary.isDragging || secondary.isDecelerating else { return }
         let delta = secondaryOffset - previous
+        // isDragging 在真实减速回调中仍可能为 true，不能用它判断手指是否还在拖拽。
+        let panState = secondary.panGestureRecognizer.state
+        let isDraggingWithFinger = panState == .began || panState == .changed
+        // 仅吸顶后的向下惯性不传给共享区；向上惯性、非吸顶时的惯性仍正常联动。
+        // top inset 保留了拖拽展开的空间，减速到视觉顶部时需截停并收回越界量。
+        if !isDraggingWithFinger, delta < 0, visibleHeaderHeight <= pinnedHeaderHeight + 0.5 {
+            if secondaryOffset <= -visibleSharedHeight {
+                updateSecondary {
+                    stopScrolling(secondary)
+                    secondary.setContentOffset(CGPoint(x: secondary.contentOffset.x, y: -visibleSharedHeight), animated: false)
+                }
+            }
+            return
+        }
         let localPosition = max(0, previous + visibleSharedHeight)
         let consumed: CGFloat
         if delta > 0 {

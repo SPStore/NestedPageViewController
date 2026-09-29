@@ -542,6 +542,75 @@ final class FoodOrderingTests: XCTestCase {
         XCTAssertEqual(f.productDepth, 0, accuracy: 0.1)
     }
 
+    func testLeftDownwardDecelerationStopsAtCategoryTopWithoutExpandingPage() {
+        for carousels in [false, true] {
+            for keepsPosition in [false, true] {
+                let f = FoodFixture(carousels: carousels, keepsPosition: keepsPosition)
+                f.moveCategories(by: 200 + (carousels ? sharedHeight : 0) + 180)
+                f.moveCategories(by: -60)
+                XCTAssertEqual(f.categoryDepth, 120, accuracy: 0.1)
+                let productOffset = f.products.contentOffset
+
+                // 尚未回到分类顶部时松手，惯性仍能继续滚动分类。
+                f.category.simulatesDeceleration = true
+                f.moveCategories(by: -70, dragging: false)
+                XCTAssertEqual(f.categoryDepth, 50, accuracy: 0.1)
+                XCTAssertEqual(f.products.contentOffset, productOffset)
+                // 跨过视觉顶部的一帧要收回越界量，并且不能把剩余惯性传给共享区。
+                for delta: CGFloat in [-90, -50] {
+                    f.moveCategories(by: delta, dragging: false)
+                    XCTAssertEqual(f.categoryDepth, 0, accuracy: 0.1)
+                    XCTAssertEqual(f.categoryTop, 44, accuracy: 0.1)
+                    XCTAssertEqual(f.headerBottom, 44, accuracy: 0.1)
+                    XCTAssertEqual(f.products.contentOffset, productOffset)
+                }
+
+                // 下一次拖拽可正常展开，位移基准不能沿用被截停前的越界值。
+                f.category.simulatesDeceleration = false
+                f.menu.scrollViewWillBeginDragging(f.category)
+                f.moveCategories(by: -30)
+                XCTAssertEqual(f.categoryDepth, 0, accuracy: 0.1)
+                XCTAssertEqual(f.categoryTop, 74, accuracy: 0.1)
+                XCTAssertEqual(f.headerBottom, carousels ? 44 : 74, accuracy: 0.1)
+                XCTAssertEqual(f.products.contentOffset.y, productOffset.y - 30, accuracy: 0.1)
+            }
+        }
+    }
+
+    func testPinnedLeftDownwardDecelerationPreservesPartiallyVisibleCarousel() {
+        let f = FoodFixture(carousels: true)
+        f.moveCategories(by: 200 + sharedHeight / 2)
+        XCTAssertEqual(f.headerBottom, 44, accuracy: 0.1)
+        XCTAssertEqual(f.categoryTop, 44 + sharedHeight / 2, accuracy: 0.1)
+        let productOffset = f.products.contentOffset
+        let categoryTop = f.categoryTop
+        let headerBottom = f.headerBottom
+        f.category.simulatesDeceleration = true
+        f.moveCategories(by: -80, dragging: false)
+        XCTAssertEqual(f.categoryDepth, 0, accuracy: 0.1)
+        XCTAssertEqual(f.categoryTop, categoryTop, accuracy: 0.1)
+        XCTAssertEqual(f.headerBottom, headerBottom, accuracy: 0.1)
+        XCTAssertEqual(f.products.contentOffset, productOffset)
+    }
+
+    func testNonPinnedLeftDownwardDecelerationContinuesExpandingHeader() {
+        for carousels in [false, true] {
+            let f = FoodFixture(carousels: carousels)
+            f.moveCategories(by: 200 + (carousels ? sharedHeight : 0))
+            // 手指已经将头部拉离吸顶位置，再松手，向下惯性应继续展开。
+            f.moveCategories(by: -(carousels ? sharedHeight : 0) - 50)
+            let productOffset = f.products.contentOffset.y
+            let categoryTop = f.categoryTop
+            let headerBottom = f.headerBottom
+            f.category.simulatesDeceleration = true
+            f.moveCategories(by: -80, dragging: false)
+            XCTAssertEqual(f.categoryDepth, 0, accuracy: 0.1)
+            XCTAssertEqual(f.categoryTop, categoryTop + 80, accuracy: 0.1)
+            XCTAssertEqual(f.headerBottom, headerBottom + 80, accuracy: 0.1)
+            XCTAssertEqual(f.products.contentOffset.y, productOffset - 80, accuracy: 0.1)
+        }
+    }
+
     func testTopBounceRecoveryDoesNotCollapseHeader() {
         let f = FoodFixture()
         f.moveCategories(by: -40)
@@ -1023,7 +1092,9 @@ private final class FoodFixture: NSObject, NestedPageViewControllerDataSource, N
     deinit { window.isHidden = true }
     func moveCategories(by delta: CGFloat, dragging: Bool = true) {
         category.simulatesDragging = dragging
+        category.simulatedPan.simulatedState = dragging ? .changed : .possible
         category.contentOffset.y += delta
+        category.simulatedPan.simulatedState = .possible
         category.simulatesDragging = false
     }
     func synchronizeHeader() { menu.updateSharedHeader(visibleHeight: headerBottom) }
@@ -1040,7 +1111,10 @@ private final class FoodFixture: NSObject, NestedPageViewControllerDataSource, N
 private final class FoodTestTable: UITableView {
     var simulatesDragging = false
     var simulatesDeceleration = false
-    override var isDragging: Bool { simulatesDragging || super.isDragging }
+    let simulatedPan = DualScrollTestPanGestureRecognizer()
+    override var panGestureRecognizer: UIPanGestureRecognizer { simulatedPan }
+    // 复现真实 UIKit 回调：减速时 isDragging 仍可能为 true，但 pan 已结束并重置。
+    override var isDragging: Bool { simulatesDragging || simulatesDeceleration || super.isDragging }
     override var isDecelerating: Bool { simulatesDeceleration || super.isDecelerating }
 }
 

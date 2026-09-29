@@ -196,6 +196,63 @@ final class FoodCarouselUITests: XCTestCase {
         capture("右栏单独收起小轮播")
     }
 
+    func testLeftUpwardFlickContinuesCollapsingPageAfterRelease() {
+        let order = foodTab(at: 0)
+        let expandedTabY = order.frame.minY
+        let start = app.coordinate(withNormalizedOffset: .zero).withOffset(
+            CGVector(dx: 44, dy: app.frame.height * 0.82))
+        // 手指只上滑 70 点，松手后页面仍需由惯性继续向上收起。
+        start.press(forDuration: 0.05,
+                    thenDragTo: start.withOffset(CGVector(dx: 0, dy: -70)),
+                    withVelocity: 1000, thenHoldForDuration: 0)
+        XCTAssertLessThan(order.frame.minY, expandedTabY - 110)
+        capture("左栏向上甩动-松手后继续收起页面")
+    }
+
+    func testLeftDownwardFlickStopsAtCategoryTopWithoutExpandingPage() {
+        let order = foodTab(at: 0)
+        let leftStart = app.coordinate(withNormalizedOffset: .zero).withOffset(
+            CGVector(dx: 44, dy: app.frame.height * 0.82))
+        leftStart.press(forDuration: 0.05,
+                        thenDragTo: leftStart.withOffset(CGVector(dx: 0, dy: -540)),
+                        withVelocity: 220, thenHoldForDuration: 0.2)
+        XCTAssertEqual(order.value as? String, "返回顶部")
+        XCTAssertFalse(app.scrollViews["food.sharedCarousel"].isHittable)
+
+        let visibleCategory = app.tables["food.categories"].cells.allElementsBoundByIndex.first {
+            $0.isHittable && $0.frame.minY >= order.frame.maxY
+        }!
+        let row = Int(visibleCategory.identifier.components(separatedBy: ".").last!)!
+        let depth = order.frame.maxY + CGFloat(row) * 60 - visibleCategory.frame.minY
+        let positionStart = app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: 44, dy: 420))
+        positionStart.press(forDuration: 0.05,
+                            thenDragTo: positionStart.withOffset(CGVector(dx: 0, dy: depth - 180)),
+                            withVelocity: 160, thenHoldForDuration: 0.2)
+        let rightCarousel = app.scrollViews["food.productCarousel"]
+        let pinnedTabY = order.frame.minY
+        let rightY = rightCarousel.frame.minY
+        capture("左栏显示鲜香炖菜-下滑松手前")
+
+        // 拖动距离小于分类的阅读深度，确保是在到顶前松手，由惯性跨过顶部边界。
+        let flickStart = app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: 44, dy: 360))
+        flickStart.press(forDuration: 0.05,
+                         thenDragTo: flickStart.withOffset(CGVector(dx: 0, dy: 70)),
+                         withVelocity: 1000, thenHoldForDuration: 0)
+        XCTAssertEqual(order.frame.minY, pinnedTabY, accuracy: 2)
+        XCTAssertEqual(rightCarousel.frame.minY, rightY, accuracy: 2)
+        XCTAssertFalse(app.scrollViews["food.sharedCarousel"].isHittable)
+        XCTAssertEqual(app.cells["food.category.0"].frame.minY, order.frame.maxY, accuracy: 2)
+        capture("左栏惯性到顶-页面保持吸顶")
+
+        // 再次用手指拖拽，才允许展开共享轮播。
+        flickStart.press(forDuration: 0.05,
+                         thenDragTo: flickStart.withOffset(CGVector(dx: 0, dy: 80)),
+                         withVelocity: 160, thenHoldForDuration: 0.2)
+        XCTAssertTrue(app.scrollViews["food.sharedCarousel"].isHittable)
+        XCTAssertGreaterThan(rightCarousel.frame.minY, rightY + 40)
+        capture("再次拖拽左栏-正常展开共享轮播")
+    }
+
     func testBothCarouselsKeepPagingPriorityAtEdgesAndOnDiagonalDrags() {
         for identifier in ["food.sharedCarousel", "food.productCarousel"] {
             if identifier == "food.productCarousel" {
