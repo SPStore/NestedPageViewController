@@ -408,7 +408,7 @@ final class FoodOrderingTests: XCTestCase {
         XCTAssertEqual(f.category.contentSize, size)
     }
 
-    func testSelectingLastShortProductSectionPinsItBelowTab() throws {
+    func testSelectingLastProductSectionPinsItBelowTab() throws {
         let f = FoodFixture(short: true)
         f.products.layoutIfNeeded()
         f.category.selectRow(at: IndexPath(row: 3, section: 0), animated: false, scrollPosition: .none)

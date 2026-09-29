@@ -101,7 +101,7 @@ final class FoodMenuViewController: UIViewController, NestedPageScrollable {
             productLayout.headerReferenceSize = CGSize(width: view.bounds.width, height: 36)
         }
         dualCoordinator.layoutContent()
-        // 为最后一个短商品分组补足空间，保证点击分类也能把标题滚到 tab 下方。
+        // 最后一个商品分组不足一屏时才补足空间，保证点击分类也能把标题滚到 tab 下方。
         let lastHeight = CGFloat(productCount(in: names.count - 1)) * 104 + 36 + 12
         let bottom = max(view.safeAreaInsets.bottom, view.bounds.height - Self.tabHeight - lastHeight)
         if products.contentInset.top == headerHeight {
@@ -139,7 +139,7 @@ final class FoodMenuViewController: UIViewController, NestedPageScrollable {
         categoryScrollTarget = nil
     }
 
-    private func productCount(in section: Int) -> Int { section == names.count - 1 ? 1 : 4 + section % 3 }
+    private func productCount(in section: Int) -> Int { section == names.count - 1 ? 8 : 4 + section % 3 }
 
     private func selectCategory(at section: Int) {
         let index = IndexPath(row: section, section: 0)
@@ -179,7 +179,7 @@ extension FoodMenuViewController: UITableViewDataSource, UITableViewDelegate, UI
         cell.textLabel?.numberOfLines = 2
         cell.textLabel?.text = names[indexPath.row]
         let selection = UIView()
-        selection.backgroundColor = .systemOrange.withAlphaComponent(0.18)
+        selection.backgroundColor = products.backgroundColor
         cell.selectedBackgroundView = selection
         cell.accessibilityIdentifier = "food.category.\(indexPath.row)"
         return cell

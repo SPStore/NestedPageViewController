@@ -21,7 +21,6 @@
       <BuildableProductRunnable runnableDebuggingMode="0">
          <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="BB553D172E6372E900798037" BuildableName="NestedPageExample.app" BlueprintName="NestedPageExample" ReferencedContainer="container:NestedPageExample.xcodeproj"/>
       </BuildableProductRunnable>
-      <CommandLineArguments><CommandLineArgument argument="-food-demo" isEnabled="YES"/></CommandLineArguments>
    </LaunchAction>
    <ProfileAction buildConfiguration="Release" shouldUseLaunchSchemeArgsEnv="YES" savedToolIdentifier="" useCustomWorkingDirectory="NO" debugDocumentVersioning="YES">
       <BuildableProductRunnable runnableDebuggingMode="0"><BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="BB553D172E6372E900798037" BuildableName="NestedPageExample.app" BlueprintName="NestedPageExample" ReferencedContainer="container:NestedPageExample.xcodeproj"/></BuildableProductRunnable>
