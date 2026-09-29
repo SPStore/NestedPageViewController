@@ -76,6 +76,7 @@ override func loadView() {
 - `expandSharedHeader(animated:onUpdate:)`：展开核心头部和共享内容，保留两列相对可见区域顶部的阅读位置，不受 `keepsContentScrollPosition` 影响。`animated` 默认 false；传 true 时用 0.32 秒 ease-out 动画同步展开。`onUpdate` 在每帧两列补偿完成后调用，业务可在此更新分组布局或高亮。共享内容高度大于 0 时必须提供 `sharedContentView`。本方法只操作当前双列表页，不负责切页。
 - `prepareForPrimaryContentSelection()`：业务主动跳到某个分组前调用，先收起显式展开的共享区，再由业务滚到目标位置。
 - `revealSecondaryRect(_:)`：接收副列表内容坐标中的 rect；显示业务选中的项，但拖动 / 减速期间不会抢用户的位置。
+- `centerSecondaryRect(_:animated:)`：将副列表内容坐标中的 rect 平滑滚到实际可视区域中央，首尾和短内容按滚动边界收敛，不增加留白。默认开启动画，拖动 / 减速期间不抢位置；建议主列表跳转完成后调用。点餐示例在点击分类后使用此接口，手动滚动商品时仍只保证分类可见。
 - `visibleHeaderHeight`：当前头部实际底边，可用于业务分组标题吸顶。
 - `visibleSharedHeight`：头部底边加剩余共享内容高度，即副列表裁剪起点。
 

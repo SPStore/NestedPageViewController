@@ -251,6 +251,79 @@ final class NestedPageDualScrollCoordinatorTests: XCTestCase {
         XCTAssertEqual(f.page.primary.contentOffset, primaryOffset)
     }
 
+    func testCenterSecondaryRectUsesVisibleViewportWithoutMovingPrimary() {
+        for primaryY: CGFloat in [-197, -97, 46] {
+            let f = DualScrollFixture()
+            let secondary = f.page.secondary
+            secondary.contentSize.height = 1500
+            f.page.coordinator.layoutContent()
+            f.page.primary.contentOffset.y = primaryY
+            let primaryOffset = f.page.primary.contentOffset
+            let sharedHeight = f.page.coordinator.visibleSharedHeight
+            let rect = CGRect(x: 0, y: 600, width: 71, height: 40)
+            f.page.coordinator.centerSecondaryRect(rect, animated: false)
+            XCTAssertEqual(rect.midY - secondary.contentOffset.y,
+                           (sharedHeight + secondary.bounds.height) / 2, accuracy: 0.5)
+            XCTAssertEqual(f.page.primary.contentOffset, primaryOffset)
+            XCTAssertEqual(f.page.coordinator.visibleSharedHeight, sharedHeight, accuracy: 0.1)
+        }
+    }
+
+    func testCenterSecondaryRectClampsEdgesAndRespectsDragging() {
+        for contentHeight: CGFloat in [180, 1500] {
+            let f = DualScrollFixture()
+            let secondary = f.page.secondary
+            secondary.contentSize.height = contentHeight
+            f.page.coordinator.layoutContent()
+            f.moveSecondary(by: 243)
+            let coordinator = f.page.coordinator
+            let original = secondary.contentOffset
+            let lastRect = CGRect(x: 0, y: contentHeight - 40, width: 71, height: 40)
+            secondary.simulatesDragging = true
+            coordinator.centerSecondaryRect(lastRect, animated: false)
+            XCTAssertEqual(secondary.contentOffset, original)
+            secondary.simulatesDragging = false
+            coordinator.centerSecondaryRect(lastRect, animated: false)
+            let maximum = max(-37, contentHeight - secondary.bounds.height + secondary.contentInset.bottom)
+            XCTAssertEqual(secondary.contentOffset.y, maximum, accuracy: 0.5)
+            coordinator.centerSecondaryRect(CGRect(x: 0, y: 0, width: 71, height: 40), animated: false)
+            XCTAssertEqual(secondary.contentOffset.y, -37, accuracy: 0.5)
+            XCTAssertEqual(f.page.primary.contentOffset.y, 46, accuracy: 0.1)
+        }
+    }
+
+    func testCenteringAnimationStopsOnPrimaryDragPagingAndStopMotion() {
+        for action in 0..<3 {
+            let f = DualScrollFixture()
+            let secondary = f.page.secondary
+            secondary.contentSize.height = 1500
+            f.page.coordinator.layoutContent()
+            f.moveSecondary(by: 243)
+            let primaryOffset = f.page.primary.contentOffset
+            let moved = expectation(description: "副列表居中动画已经开始")
+            var fulfilled = false
+            let observation = secondary.observe(\.contentOffset, options: [.new]) { _, change in
+                guard let offset = change.newValue, offset.y > 0, !fulfilled else { return }
+                fulfilled = true
+                moved.fulfill()
+            }
+            f.page.coordinator.centerSecondaryRect(CGRect(x: 0, y: 900, width: 71, height: 40))
+            wait(for: [moved], timeout: 2)
+            observation.invalidate()
+            XCTAssertEqual(f.page.primary.contentOffset, primaryOffset)
+            switch action {
+            case 0: f.page.coordinator.scrollViewWillBeginDragging(f.page.primary)
+            case 1: f.pager.scrollToPage(at: 0, animated: false)
+            default: f.page.coordinator.stopMotion()
+            }
+            let stoppedOffset = secondary.contentOffset
+            let settled = expectation(description: "居中动画停止后不再写入")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { settled.fulfill() }
+            wait(for: [settled], timeout: 1)
+            XCTAssertEqual(secondary.contentOffset, stoppedOffset)
+        }
+    }
+
     func testPlainHorizontalViewsRegistrationAndCoordinatorLifetime() throws {
         let pager = NestedPageViewController()
         let primary = UIScrollView()

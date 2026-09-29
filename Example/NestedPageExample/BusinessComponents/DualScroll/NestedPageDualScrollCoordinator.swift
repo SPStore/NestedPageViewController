@@ -263,6 +263,19 @@ final class NestedPageDualScrollCoordinator {
         else if rect.maxY > bottom { setSecondaryOffset(rect.maxY - secondary.bounds.height) }
     }
 
+    /// 将业务选中项尽量居中到副列表的实际可见区域；首尾和短内容不额外制造留白。
+    /// 建议在主列表跳转完成、共享区域高度稳定后调用，避免两列动画互相补偿。
+    func centerSecondaryRect(_ rect: CGRect, animated: Bool = true) {
+        guard !secondary.isDragging, !secondary.isDecelerating, !isDrivingFromSecondary,
+              secondary.bounds.height > visibleSharedHeight else { return }
+        // 副列表本身仍是全屏高，顶部被共享区域裁剪，不能直接使用整个 bounds 的中点。
+        let center = (visibleSharedHeight + secondary.bounds.height) / 2
+        let minimum = -visibleSharedHeight
+        let maximum = max(minimum, secondary.contentSize.height - secondary.bounds.height + secondary.contentInset.bottom)
+        let target = min(maximum, max(minimum, rect.midY - center))
+        setSecondaryOffset(target, animated: animated && secondary.window != nil && !UIAccessibility.isReduceMotionEnabled)
+    }
+
     /// 任意 UIScrollView / UICollectionView 都可注册；自身横纵方向判断仍由该视图负责。
     func prioritizeHorizontalScrolling(in scrollViews: [UIScrollView]) {
         guard let pager = pageViewController else { return }
@@ -337,9 +350,9 @@ final class NestedPageDualScrollCoordinator {
         }
     }
 
-    private func setSecondaryOffset(_ value: CGFloat) {
+    private func setSecondaryOffset(_ value: CGFloat, animated: Bool = false) {
         updateSecondary {
-            secondary.setContentOffset(CGPoint(x: secondary.contentOffset.x, y: value), animated: false)
+            secondary.setContentOffset(CGPoint(x: secondary.contentOffset.x, y: value), animated: animated)
         }
     }
 
@@ -354,7 +367,8 @@ final class NestedPageDualScrollCoordinator {
     }
 
     private func stopSecondaryMotion() {
-        if secondary.isDecelerating { stopScrolling(secondary) }
+        // 除手势减速外，也要终止分类居中的程序化动画。
+        stopScrolling(secondary)
         secondaryOffset = secondary.contentOffset.y
     }
 

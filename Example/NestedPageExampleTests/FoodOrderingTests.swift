@@ -359,7 +359,7 @@ final class FoodOrderingTests: XCTestCase {
     }
 
     private func waitForScroll(_ scrollView: UIScrollView, to target: CGFloat, accuracy: CGFloat = 0.5) {
-        let arrived = expectation(description: "商品滚动到目标分组")
+        let arrived = expectation(description: "列表滚动到目标位置")
         var fulfilled = false
         // KVO 在 UIKit 修改 offset 的主线程回调；不让异步 predicate 持有整套 UIWindow 测试夹具。
         let observation = scrollView.observe(\.contentOffset, options: [.initial, .new]) { _, change in
@@ -908,6 +908,52 @@ final class FoodOrderingTests: XCTestCase {
         XCTAssertEqual(f.categoryTop, 244 + sharedHeight, accuracy: 0.1)
         XCTAssertEqual(f.productDepth, productDepth, accuracy: 0.1)
         XCTAssertEqual(f.categoryDepth, categoryDepth, accuracy: 0.1)
+    }
+
+    func testCategoryTapAndRepeatedTapCenterWithoutMovingProductTarget() throws {
+        for keepsPosition in [false, true] {
+            let f = FoodFixture(carousels: true, keepsPosition: keepsPosition)
+            f.moveCategories(by: 200 + sharedHeight)
+            let index = IndexPath(row: 8, section: 0)
+            let header = try XCTUnwrap(f.products.collectionViewLayout.layoutAttributesForSupplementaryView(
+                ofKind: UICollectionView.elementKindSectionHeader, at: IndexPath(item: 0, section: 10)))
+            let productTarget = header.frame.minY - 44
+            let categoryTarget = f.category.rectForRow(at: index).midY - (44 + f.category.bounds.height) / 2
+            f.menu.tableView(f.category, didSelectRowAt: index)
+            waitForScroll(f.products, to: productTarget)
+            waitForScroll(f.category, to: categoryTarget)
+            XCTAssertEqual(f.category.indexPathForSelectedRow, index)
+            XCTAssertEqual(f.category.indexPathsForSelectedRows?.count, 1)
+            XCTAssertEqual(f.category.rectForRow(at: index).midY - f.category.contentOffset.y,
+                           (f.categoryTop + f.category.bounds.height) / 2, accuracy: 0.5)
+            XCTAssertEqual(f.products.contentOffset.y, productTarget, accuracy: 0.5)
+
+            // 右侧已经位于目标分组时，再点同一分类也应重新居中。
+            f.category.contentOffset.y += 40
+            f.menu.tableView(f.category, didSelectRowAt: index)
+            waitForScroll(f.category, to: categoryTarget)
+            XCTAssertEqual(f.products.contentOffset.y, productTarget, accuracy: 0.5)
+            XCTAssertEqual(f.categoryTop, 44, accuracy: 0.5)
+        }
+    }
+
+    func testCategoryTapClampsFirstLastAndShortListWithoutBlankSpace() throws {
+        for (short, row) in [(false, 0), (false, 15), (true, 3)] {
+            let f = FoodFixture(short: short, carousels: true)
+            let index = IndexPath(row: row, section: 0)
+            let header = try XCTUnwrap(f.products.collectionViewLayout.layoutAttributesForSupplementaryView(
+                ofKind: UICollectionView.elementKindSectionHeader, at: IndexPath(item: 0, section: row + 2)))
+            let productTarget = header.frame.minY - 44
+            f.menu.tableView(f.category, didSelectRowAt: index)
+            waitForScroll(f.products, to: productTarget)
+            let categoryTarget = short || row == 0 ? -44
+                : f.category.contentSize.height - f.category.bounds.height + f.category.contentInset.bottom
+            waitForScroll(f.category, to: categoryTarget)
+            XCTAssertEqual(f.category.indexPathForSelectedRow, index)
+            XCTAssertEqual(f.categoryTop, 44, accuracy: 0.5)
+            XCTAssertEqual(f.products.contentOffset.y, productTarget, accuracy: 0.5)
+            XCTAssertFalse(f.category.bounces)
+        }
     }
 
     func testCategorySelectionAfterExpansionStillPinsTargetSection() throws {

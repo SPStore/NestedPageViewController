@@ -154,8 +154,8 @@ final class FoodMenuViewController: UIViewController, NestedPageScrollable {
 
     func stopMotion() {
         guard isViewLoaded else { return }
-        dualCoordinator.stopMotion()
         categoryScrollTarget = nil
+        dualCoordinator.stopMotion()
     }
 
     private func productCount(in section: Int) -> Int { section == names.count - 1 ? 8 : 4 + section % 3 }
@@ -167,6 +167,11 @@ final class FoodMenuViewController: UIViewController, NestedPageScrollable {
             categoryTableView.deselectRow(at: previous, animated: false)
         }
         categoryTableView.selectRow(at: index, animated: false, scrollPosition: .none)
+    }
+
+    private func centerSelectedCategory() {
+        let index = IndexPath(row: selectedCategory, section: 0)
+        dualCoordinator.centerSecondaryRect(categoryTableView.rectForRow(at: index))
     }
 
     private func updateSelectedCategory() {
@@ -215,8 +220,12 @@ extension FoodMenuViewController: UITableViewDataSource, UITableViewDelegate, UI
             return
         }
         let target = headerY - pinnedHeaderHeight
-        if abs(products.contentOffset.y - target) < 0.5 { categoryScrollTarget = nil }
-        else { products.setContentOffset(CGPoint(x: 0, y: target), animated: true) }
+        if abs(products.contentOffset.y - target) < 0.5 {
+            categoryScrollTarget = nil
+            centerSelectedCategory()
+        } else {
+            products.setContentOffset(CGPoint(x: 0, y: target), animated: true)
+        }
     }
     func numberOfSections(in collectionView: UICollectionView) -> Int { names.count + leadingSectionCount }
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
@@ -273,8 +282,11 @@ extension FoodMenuViewController: UITableViewDataSource, UITableViewDelegate, UI
     }
     func scrollViewDidEndScrollingAnimation(_ scrollView: UIScrollView) {
         if scrollView === products {
+            let shouldCenterCategory = categoryScrollTarget != nil
             categoryScrollTarget = nil
             updateSelectedCategory()
+            // 只响应分类点击，不在用户手动滚动商品或中途接管后强行移动左栏。
+            if shouldCenterCategory { centerSelectedCategory() }
         }
     }
 }
