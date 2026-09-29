@@ -232,6 +232,21 @@ open class NestedPageTabStripView: UIView {
     }
     
     // MARK: - Layout
+
+    open override func layoutSubviews() {
+        super.layoutSubviews()
+        // 导航栏 titleView 等宿主会在初始化后才确定尺寸，先完成按钮布局再定位跟踪器。
+        stackView.layoutIfNeeded()
+        if let scrollView = linkedScrollView,
+           scrollView.bounds.width > 0,
+           titleButtons.count >= 2,
+           !isLinkedScrollAnimating {
+            // 尺寸变化或重新布局时保留横滑进度，不能直接吸附到选中的按钮。
+            updateIndicatorPosition(with: scrollView.contentOffset.x, pageWidth: scrollView.bounds.width)
+        } else {
+            layoutIndicator()
+        }
+    }
     
     open override func updateConstraints() {
         super.updateConstraints()
@@ -370,17 +385,19 @@ open class NestedPageTabStripView: UIView {
         }
     }
     
-    private func handleLinkedScrollViewDidScroll() {
-        var isScrollAnimating = false
+    private var isLinkedScrollAnimating: Bool {
         if #available(iOS 17.4, *) {
-            isScrollAnimating = linkedScrollView?.isScrollAnimating ?? false
+            return linkedScrollView?.isScrollAnimating ?? false
         } else {
-            isScrollAnimating = isScrollingProgrammatically
+            return isScrollingProgrammatically
         }
-        
+    }
+
+    private func handleLinkedScrollViewDidScroll() {
         guard let linkedScrollView = linkedScrollView,
+              linkedScrollView.bounds.width > 0,
               !titleButtons.isEmpty,
-              !isScrollAnimating else {
+              !isLinkedScrollAnimating else {
             return
         }
         

@@ -5,6 +5,32 @@ import NestedPageViewController
 
 @MainActor
 final class ExampleSafeAreaTests: XCTestCase {
+    func testNoHeaderNavigationTabIndicatorOnFirstAppearanceAndResize() throws {
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        let root = NoHeaderViewController()
+        let navigation = NavigationController(rootViewController: root)
+        window.rootViewController = navigation
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true; window.rootViewController = nil }
+
+        for size in [CGSize(width: 390, height: 844), CGSize(width: 844, height: 390)] {
+            window.frame.size = size
+            window.setNeedsLayout()
+            window.layoutIfNeeded()
+            root.view.layoutIfNeeded()
+            settleAppearance()
+
+            let strip = try XCTUnwrap(root.navigationItem.titleView as? NestedPageTabStripView)
+            let stack = try XCTUnwrap(strip.subviews.compactMap { $0 as? UIStackView }.first)
+            let indicator = try XCTUnwrap(strip.subviews.first { !($0 is UIStackView) })
+            XCTAssertEqual(strip.selectedIndex, 1)
+            XCTAssertGreaterThan(strip.bounds.height, 0)
+            let selectedCenter = stack.convert(stack.arrangedSubviews[1].center, to: strip)
+            XCTAssertEqual(indicator.frame.midX, selectedCenter.x, accuracy: 0.5)
+            XCTAssertEqual(indicator.frame.maxY, strip.bounds.height, accuracy: 0.5)
+        }
+    }
+
     func testExampleListTextFitsAfterWidthChanges() throws {
         let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
         let list = ExampleListViewController()
