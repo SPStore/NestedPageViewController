@@ -159,7 +159,7 @@
     // 创建固定的返回按钮
     self.backButton = [UIButton buttonWithType:UIButtonTypeSystem];
     [self.backButton setImage:[UIImage systemImageNamed:@"chevron.left"] forState:UIControlStateNormal];
-    self.backButton.tintColor = UIColor.systemBlueColor;
+    self.backButton.tintColor = UIColor.labelColor;
     self.backButton.backgroundColor = UIColor.clearColor;
     self.backButton.contentHorizontalAlignment = UIControlContentHorizontalAlignmentLeading;
     [self.backButton addTarget:self action:@selector(backButtonTapped) forControlEvents:UIControlEventTouchUpInside];

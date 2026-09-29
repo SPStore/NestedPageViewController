@@ -79,6 +79,8 @@ final class ExampleSafeAreaTests: XCTestCase {
             XCTAssertTrue(root.selectedTab === root.tabs[0])
             XCTAssertTrue(root.tabs[0].viewController === root.exampleNavigationController)
             let settings = try XCTUnwrap(root.tabs[1].viewController as? NavigationController)
+            settings.loadViewIfNeeded()
+            XCTAssertEqual(settings.navigationBar.tintColor, UIColor.label)
             XCTAssertTrue(settings.viewControllers.first is SettingsViewController)
             root.selectedTab = root.tabs[1]
             XCTAssertTrue(root.selectedViewController === settings)
@@ -146,6 +148,7 @@ final class ExampleSafeAreaTests: XCTestCase {
                     settleAppearance()
 
                     let pager = try XCTUnwrap(root.children.compactMap { $0 as? NestedPageViewController }.first, model.title)
+                    XCTAssertEqual(navigation.navigationBar.tintColor, UIColor.label, model.title)
                     pager.view.layoutIfNeeded()
                     let safeFrame = root.view.safeAreaLayoutGuide.layoutFrame
                     var expected = expectedPagerFrame(in: root)
@@ -172,6 +175,7 @@ final class ExampleSafeAreaTests: XCTestCase {
                     if root is ObjcExmpleViewController {
                         XCTAssertEqual(pager.stickyOffset, 44, model.title)
                         let back = try XCTUnwrap(root.view.subviews.compactMap { $0 as? UIButton }.first)
+                        XCTAssertEqual(back.tintColor, UIColor.label, model.title)
                         XCTAssertTrue(safeFrame.contains(back.frame), model.title)
                     }
                     if let headerZoom = root as? HeaderZoomViewController {

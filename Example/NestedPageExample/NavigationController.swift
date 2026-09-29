@@ -12,6 +12,9 @@ class NavigationController: UINavigationController, UIGestureRecognizerDelegate 
     override func viewDidLoad() {
         super.viewDidLoad()
 
+        // 统一返回按钮和导航栏操作按钮，浅色为黑色，深色模式自动适配。
+        navigationBar.tintColor = .label
+
         // 如果隐藏了系统导航栏，默认是不会再有测滑手势的，这里设置代理，就可以在即便隐藏导航栏的情况下，也能启用测滑手势
         interactivePopGestureRecognizer?.delegate = self
     }
