@@ -5,6 +5,111 @@ import NestedPageViewController
 
 @MainActor
 final class ExampleSafeAreaTests: XCTestCase {
+    func testPositionKeepingDefaultsToEnabled() throws {
+        let config = NestedPageConfig.shared
+        let item = try XCTUnwrap(config.getAllConfigItems().first { $0.keyPath == "keepsContentScrollPosition" })
+        XCTAssertEqual(item.defaultValue as? Bool, true)
+        XCTAssertTrue(config.keepsContentScrollPosition)
+        let pager = NestedPageViewController()
+        config.applyConfig(to: pager)
+        XCTAssertTrue(pager.keepsContentScrollPosition)
+    }
+
+    func testBounceSettingAppliesToEveryDefaultPage() throws {
+        let config = NestedPageConfig.shared
+        let originalBounces = config.bounces
+        defer { config.bounces = originalBounces }
+        XCTAssertNotNil(config.getAllConfigItems().first { $0.keyPath == "bounces" })
+
+        for bounces in [false, true] {
+            config.bounces = bounces
+            let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+            let root = StandardViewController()
+            window.rootViewController = NavigationController(rootViewController: root)
+            window.makeKeyAndVisible()
+            defer { window.isHidden = true; window.rootViewController = nil }
+            window.layoutIfNeeded()
+            root.view.layoutIfNeeded()
+            settleAppearance()
+
+            let pager = try XCTUnwrap(root.children.compactMap { $0 as? NestedPageViewController }.first)
+            XCTAssertEqual(pager.bounces, bounces)
+            for index in 0..<root.numberOfViewControllers(in: pager) {
+                pager.scrollToPage(at: index, animated: false)
+                pager.view.layoutIfNeeded()
+                let child = try XCTUnwrap(pager.viewController(at: index))
+                XCTAssertEqual(child.nestedPageContentScrollView.bounces, bounces, "第 \(index) 页")
+            }
+        }
+    }
+
+    func testDefaultExampleScrollToTopButtonKeepsSelectedPage() throws {
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        let root = StandardViewController()
+        window.rootViewController = NavigationController(rootViewController: root)
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true; window.rootViewController = nil }
+        window.layoutIfNeeded()
+        root.view.layoutIfNeeded()
+        settleAppearance()
+
+        let pager = try XCTUnwrap(root.children.compactMap { $0 as? NestedPageViewController }.first)
+        pager.scrollToPage(at: 3, animated: false)
+        pager.view.layoutIfNeeded()
+        let child = try XCTUnwrap(pager.viewController(at: 3))
+        child.view.layoutIfNeeded()
+        let scrollView = child.nestedPageContentScrollView
+        scrollView.setContentOffset(CGPoint(x: 0, y: 200), animated: false)
+        XCTAssertTrue(pager.isSticked)
+
+        let button = try XCTUnwrap(root.navigationItem.rightBarButtonItem)
+        XCTAssertEqual(button.title, "回到顶部")
+        let action = try XCTUnwrap(button.action)
+        XCTAssertTrue(UIApplication.shared.sendAction(action, to: button.target, from: button, for: nil))
+        let reachedTop = expectation(for: NSPredicate { _, _ in
+            abs(scrollView.contentOffset.y + scrollView.adjustedContentInset.top) < 0.5
+        }, evaluatedWith: scrollView)
+        wait(for: [reachedTop], timeout: 3)
+        XCTAssertEqual(pager.currentIndex, 3)
+        XCTAssertFalse(pager.isSticked)
+    }
+
+    func testDefaultAndInheritedExamplesFitWithVisibleSystemTabBar() throws {
+        for useInheritance in [false, true] {
+            let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+            let navigation = ImmediateExampleNavigationController(rootViewController: UIViewController())
+            let tabs = UITabBarController()
+            tabs.viewControllers = [navigation]
+            window.rootViewController = tabs
+            window.makeKeyAndVisible()
+            defer { window.isHidden = true; window.rootViewController = nil }
+            let root: UIViewController = useInheritance
+                ? SafeAreaExampleHostViewController(contentViewController: FixedHeaderViewController())
+                : StandardViewController()
+            root.hidesBottomBarWhenPushed = false
+            navigation.pushViewController(root, animated: false)
+            root.additionalSafeAreaInsets = UIEdgeInsets(top: 7, left: 19, bottom: 11, right: 23)
+
+            for size in [CGSize(width: 390, height: 844), CGSize(width: 844, height: 390)] {
+                window.frame.size = size
+                window.setNeedsLayout()
+                window.layoutIfNeeded()
+                root.view.layoutIfNeeded()
+                settleAppearance()
+                XCTAssertFalse(root.hidesBottomBarWhenPushed)
+                XCTAssertFalse(tabs.tabBar.isHidden)
+                let pager = try XCTUnwrap(root.children.compactMap { $0 as? NestedPageViewController }.first)
+                pager.view.layoutIfNeeded()
+                assertEqual(pager.view.frame, root.view.safeAreaLayoutGuide.layoutFrame, "保留系统 TabBar")
+                assertEqual(pager.containerScrollView.frame, pager.view.bounds, "不重复扣除安全区")
+                let child = try XCTUnwrap(pager.viewController(at: pager.currentIndex))
+                child.view.layoutIfNeeded()
+                assertEqual(child.nestedPageContentScrollView.frame, child.view.safeAreaLayoutGuide.layoutFrame,
+                            "子列表位于安全区内")
+            }
+        }
+    }
+
     func testNoHeaderNavigationTabIndicatorOnFirstAppearanceAndResize() throws {
         let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
         let root = NoHeaderViewController()
@@ -160,7 +265,9 @@ final class ExampleSafeAreaTests: XCTestCase {
 
                     if root is SafeAreaExampleHostViewController {
                         // 安全区由宿主处理，继承型组件不能再额外扣一次导航栏 / TabBar。
-                        XCTAssertEqual(root.hidesBottomBarWhenPushed, pager is NoBouncesViewController)
+                        XCTAssertTrue(root.hidesBottomBarWhenPushed)
+                        XCTAssertTrue(pager is FixedHeaderViewController)
+                        XCTAssertEqual(model.detailTitle, "本示例采用继承方式")
                     }
 
                     let child = try XCTUnwrap(pager.viewController(at: pager.currentIndex), model.title)
@@ -172,6 +279,17 @@ final class ExampleSafeAreaTests: XCTestCase {
                         expectedScrollFrame.origin.y = 0
                     }
                     assertEqual(scrollView.frame, expectedScrollFrame, model.title)
+
+                    if let fixedHeader = pager as? FixedHeaderViewController {
+                        XCTAssertTrue(fixedHeader.headerAlwaysFixed)
+                        XCTAssertTrue(fixedHeader.automaticallyAdjustsContainerInsets)
+                        let cover = try XCTUnwrap(fixedHeader.coverView(in: pager))
+                        let originalFrame = cover.convert(cover.bounds, to: pager.view)
+                        let originalOffset = scrollView.contentOffset
+                        scrollView.setContentOffset(CGPoint(x: 0, y: originalOffset.y + 200), animated: false)
+                        assertEqual(cover.convert(cover.bounds, to: pager.view), originalFrame, "滚动时头部保持固定")
+                        scrollView.setContentOffset(originalOffset, animated: false)
+                    }
 
                     if let headerZoom = root as? HeaderZoomViewController {
                         try verifyHeaderZoom(headerZoom, pager: pager)

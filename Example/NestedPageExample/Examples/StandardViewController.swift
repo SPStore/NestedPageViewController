@@ -26,8 +26,19 @@ class StandardViewController: UIViewController {
         super.viewDidLoad()
         
         view.backgroundColor = .systemBackground
+
+        navigationItem.rightBarButtonItem = UIBarButtonItem(
+            title: "回到顶部",
+            style: .plain,
+            target: self,
+            action: #selector(scrollToTopButtonTapped)
+        )
         
         setupNestedPageViewController()
+    }
+
+    @objc private func scrollToTopButtonTapped() {
+        nestedPageViewController.scrollToTop(animated: true)
     }
     
     override func viewDidLayoutSubviews() {

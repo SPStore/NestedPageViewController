@@ -239,14 +239,16 @@ final class NestedPageScrollBehaviorTests: XCTestCase {
         }
     }
 
-    func testDefaultPolicyStillResetsLayout() {
+    func testDefaultPolicyKeepsLayoutPosition() {
         let host = NestedPageViewController()
-        XCTAssertFalse(host.keepsContentScrollPosition)
+        XCTAssertTrue(host.keepsContentScrollPosition)
         let fixture = ScrollBehaviorFixture(host: host, keepsPosition: host.keepsContentScrollPosition)
         fixture.scroll(to: 140)
         fixture.coverHeight = 304
         host.updateLayouts()
-        XCTAssertEqual(fixture.pages.map { $0.scrollView.contentOffset.y }, [-348, -348])
+        XCTAssertEqual(fixture.pages.map { $0.scrollView.contentOffset.y }, [140, -44])
+        XCTAssertEqual(fixture.headerY, -304, accuracy: 0.001)
+        XCTAssertTrue(host.isSticked)
     }
 
     func testInitialLayoutStartsExpandedWithInsetContentOrigin() {

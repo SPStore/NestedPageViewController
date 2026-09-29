@@ -19,9 +19,6 @@
         F00D00000000000000000010 /* FoodOrderingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00D00000000000000000011; };
         F00D00000000000000000001 /* FoodOrderingViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00D00000000000000000002 /* FoodOrderingViewController.swift */; };
         F00D00000000000000000003 /* FoodMenuViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00D00000000000000000004 /* FoodMenuViewController.swift */; };
-		BB46026E2E68627C009B6A11 /* ScrollsToTopViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB46026D2E68627C009B6A11 /* ScrollsToTopViewController.swift */; };
-		BB4602702E693C29009B6A11 /* NoBouncesViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB46026F2E693C29009B6A11 /* NoBouncesViewController.swift */; };
-		BB4602722E699C4C009B6A11 /* IncludeTabBarViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB4602712E699C4C009B6A11 /* IncludeTabBarViewController.swift */; };
 		BB4602742E69B8EC009B6A11 /* CustomTabStripViewController1.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB4602732E69B8EC009B6A11 /* CustomTabStripViewController1.swift */; };
 		BB4602762E69C3E8009B6A11 /* CustomTabStripViewController2.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB4602752E69C3E8009B6A11 /* CustomTabStripViewController2.swift */; };
 		BB4602782E69C4F4009B6A11 /* DefaulListVIewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB4602772E69C4F4009B6A11 /* DefaulListVIewController.swift */; };
@@ -81,9 +78,6 @@
 		1C0B251B28B2AEAED6398703 /* Pods-NestedPageExample.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-NestedPageExample.debug.xcconfig"; path = "Target Support Files/Pods-NestedPageExample/Pods-NestedPageExample.debug.xcconfig"; sourceTree = "<group>"; };
 		3D724D78CE67448219DAD2DF /* Pods-NestedPageExample.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-NestedPageExample.release.xcconfig"; path = "Target Support Files/Pods-NestedPageExample/Pods-NestedPageExample.release.xcconfig"; sourceTree = "<group>"; };
 		3EDDD491DBB5D78459C97CAA /* Pods_NestedPageExample.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_NestedPageExample.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		BB46026D2E68627C009B6A11 /* ScrollsToTopViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScrollsToTopViewController.swift; sourceTree = "<group>"; };
-		BB46026F2E693C29009B6A11 /* NoBouncesViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoBouncesViewController.swift; sourceTree = "<group>"; };
-		BB4602712E699C4C009B6A11 /* IncludeTabBarViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IncludeTabBarViewController.swift; sourceTree = "<group>"; };
 		BB4602732E69B8EC009B6A11 /* CustomTabStripViewController1.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomTabStripViewController1.swift; sourceTree = "<group>"; };
 		BB4602752E69C3E8009B6A11 /* CustomTabStripViewController2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomTabStripViewController2.swift; sourceTree = "<group>"; };
 		BB4602772E69C4F4009B6A11 /* DefaulListVIewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaulListVIewController.swift; sourceTree = "<group>"; };
@@ -204,10 +198,7 @@
 				BB553D792E63732B00798037 /* PartialRefreshViewController.swift */,
 				BB553DB12E63796000798037 /* GlobalRefreshViewController.swift */,
 				BBE154B52E6C5E65003815C5 /* FixedHeaderViewController.swift */,
-				BB46026D2E68627C009B6A11 /* ScrollsToTopViewController.swift */,
 				BB553DB72E65C79C00798037 /* FullScreenGestureViewController.swift */,
-				BB46026F2E693C29009B6A11 /* NoBouncesViewController.swift */,
-				BB4602712E699C4C009B6A11 /* IncludeTabBarViewController.swift */,
 				BBE154B12E6C1837003815C5 /* PreloadViewController.swift */,
 				BBE154B32E6C1D43003815C5 /* BuiltInTabStripViewController.swift */,
 				BB4602732E69B8EC009B6A11 /* CustomTabStripViewController1.swift */,
@@ -431,7 +422,6 @@
 				BB9AADA82E8627ED00D202CC /* ChangeHeaderHeightViewController.swift in Sources */,
 				BB553D972E63732B00798037 /* MyTableView.swift in Sources */,
 				BB553D982E63732B00798037 /* PostsViewController.swift in Sources */,
-				BB46026E2E68627C009B6A11 /* ScrollsToTopViewController.swift in Sources */,
 				BBE154B02E6C10EF003815C5 /* NestedPageTabStripObjcBridge.swift in Sources */,
 				BB553D992E63732B00798037 /* RecommendsViewController.swift in Sources */,
 				BB4602782E69C4F4009B6A11 /* DefaulListVIewController.swift in Sources */,
@@ -451,10 +441,8 @@
 				BB553DB42E641D7900798037 /* ChildBaseViewController.swift in Sources */,
 				BB553DA72E63732B00798037 /* ExampleListViewController.swift in Sources */,
 				BB9AADAA2E86301700D202CC /* CustomCoverView.swift in Sources */,
-				BB4602702E693C29009B6A11 /* NoBouncesViewController.swift in Sources */,
 				BB553DA82E63732B00798037 /* ExampleTypeModel.swift in Sources */,
 				BB9AADA62E85A9B800D202CC /* PinnedCollectionHeaderViewController.swift in Sources */,
-				BB4602722E699C4C009B6A11 /* IncludeTabBarViewController.swift in Sources */,
 				BBE154B22E6C1837003815C5 /* PreloadViewController.swift in Sources */,
 				BB553DB82E65C79C00798037 /* FullScreenGestureViewController.swift in Sources */,
 				BB553DA92E63732B00798037 /* SceneDelegate.swift in Sources */,

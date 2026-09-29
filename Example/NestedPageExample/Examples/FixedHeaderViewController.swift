@@ -8,12 +8,10 @@
 import UIKit
 import NestedPageViewController
 
-class FixedHeaderViewController: UIViewController {
+class FixedHeaderViewController: NestedPageViewController {
     
     // MARK: - Properties
     
-    private var nestedPageViewController = NestedPageViewController()
-    private var lastPageSize = CGSize.zero
     private var coverView: UIView = ProfileCoverView(frame: .zero)
     
     // MARK: - View Controllers
@@ -32,38 +30,14 @@ class FixedHeaderViewController: UIViewController {
     
     // MARK: - Setup
 
-    override func viewDidLayoutSubviews() {
-        super.viewDidLayoutSubviews()
-        let size = nestedPageViewController.view.bounds.size
-        guard size != lastPageSize else { return }
-        lastPageSize = size
-        // 安全区约束变化后同步组件内部的分页、头部和滚动范围。
-        if nestedPageViewController.viewController(at: nestedPageViewController.currentIndex) != nil {
-            nestedPageViewController.updateLayouts()
-        }
-    }
-
     private func setupNestedPageViewController() {
-        nestedPageViewController.dataSource = self
-        
-        nestedPageViewController.headerAlwaysFixed = true
+        dataSource = self
+        // 示例入口的宿主约束四边安全区；单独使用本控制器时仍启用上下安全区适配。
+        automaticallyAdjustsContainerInsets = true
+        headerAlwaysFixed = true
         
         // 应用全局配置
-        NestedPageConfig.shared.applyConfig(to: nestedPageViewController)
-        
-        addChild(nestedPageViewController)
-        view.addSubview(nestedPageViewController.view)
-        
-        let safeArea = view.safeAreaLayoutGuide
-        nestedPageViewController.view.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            nestedPageViewController.view.topAnchor.constraint(equalTo: safeArea.topAnchor),
-            nestedPageViewController.view.leadingAnchor.constraint(equalTo: safeArea.leadingAnchor),
-            nestedPageViewController.view.trailingAnchor.constraint(equalTo: safeArea.trailingAnchor),
-            nestedPageViewController.view.bottomAnchor.constraint(equalTo: safeArea.bottomAnchor)
-        ])
-        
-        nestedPageViewController.didMove(toParent: self)
+        NestedPageConfig.shared.applyConfig(to: self)
     }
     
 }

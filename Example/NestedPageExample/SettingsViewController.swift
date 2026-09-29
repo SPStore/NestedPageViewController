@@ -29,7 +29,7 @@ class NestedPageConfig: NSObject {
     @objc static let shared = NestedPageConfig()
     
     // BOOL 类型配置
-    @objc dynamic var keepsContentScrollPosition: Bool = false
+    @objc dynamic var keepsContentScrollPosition: Bool = true
     @objc dynamic var showsVerticalScrollIndicator: Bool = false
     @objc dynamic var bounces: Bool = true
     @objc dynamic var allowsSwipeToChangePage: Bool = true
@@ -50,7 +50,7 @@ class NestedPageConfig: NSObject {
                 description: "切换页面及更新头部布局时是否保持子列表的滚动位置",
                 keyPath: "keepsContentScrollPosition",
                 type: .bool,
-                defaultValue: false
+                defaultValue: true
             ),
             NestedPageConfigItem(
                 title: "显示垂直滚动指示器",
@@ -58,6 +58,13 @@ class NestedPageConfig: NSObject {
                 keyPath: "showsVerticalScrollIndicator",
                 type: .bool,
                 defaultValue: false
+            ),
+            NestedPageConfigItem(
+                title: "启用弹性效果",
+                description: "控制列表到达顶部或底部后的回弹，修改后重新进入示例生效；关闭后无法下拉刷新",
+                keyPath: "bounces",
+                type: .bool,
+                defaultValue: true
             ),
             NestedPageConfigItem(
                 title: "允许滑动切换页面",
@@ -96,6 +103,7 @@ class NestedPageConfig: NSObject {
     @objc func applyConfig(to pageViewController: NestedPageViewController) {
         pageViewController.keepsContentScrollPosition = keepsContentScrollPosition
         pageViewController.showsVerticalScrollIndicator = showsVerticalScrollIndicator
+        pageViewController.bounces = bounces
         pageViewController.allowsSwipeToChangePage = allowsSwipeToChangePage
         pageViewController.headerMovesOnlyWhenTouchingHeaderDuringHover = headerMovesOnlyWhenTouchingHeaderDuringHover
         pageViewController.interruptsScrollingWhenTransitioningToFullStick = interruptsScrollingWhenTransitioningToFullStick

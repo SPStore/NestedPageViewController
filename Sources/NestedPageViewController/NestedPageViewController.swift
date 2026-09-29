@@ -104,11 +104,11 @@ open class NestedPageViewController: UIViewController {
         return childManager.currentIndex
     }
     
-    /// 是否在切页及更新布局时保持子列表的滚动位置，默认为 false。
+    /// 是否在切页及更新布局时保持子列表的滚动位置，默认为 true。
     /// 非吸顶状态下切页时，true 保留各列表的位置，false 将新列表滚动到初始位置。
     /// 调用 updateLayouts() 时，true 保留内容相对 tabStrip 的位置，false 重置所有已加载列表的位置。
     /// 布局更新的位置保持适用于头部尺寸变化、子列表内容布局不变的场景；不负责数据增删或 cell 高度变化的锚定。
-    open var keepsContentScrollPosition: Bool = false
+    open var keepsContentScrollPosition: Bool = true
     
     /// 控制scrollView滑动到顶部后继续下拉头部视图是否有弹性效果（也就是继续下拉scrollView，头部视图是否跟随下拉）
     /// 如果想要实现局部下拉刷新，请将该属性设置为false，才能看到刷新动效

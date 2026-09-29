@@ -235,7 +235,7 @@ extension YourViewController: NestedPageViewControllerDelegate {
 
 ### 方式二：继承方式
 
-直接继承时根视图由系统管理，可启用组件的上下安全区适配。Demo 中的两个继承型示例另外通过 `SafeAreaExampleHostViewController` 将组件视图四边约束到宿主的 `safeAreaLayoutGuide`，同时避开横屏左右安全区；此时子控制器内部不会重复扣除安全距离。
+直接继承时根视图由系统管理，可启用组件的上下安全区适配。Demo 中的“头部始终固定不动”（`FixedHeaderViewController`）展示继承式用法，另外通过 `SafeAreaExampleHostViewController` 将组件视图四边约束到宿主的 `safeAreaLayoutGuide`，同时避开横屏左右安全区；此时子控制器内部不会重复扣除安全距离。
 
 ```swift
 import UIKit
@@ -344,6 +344,19 @@ extension YourNestedPageViewController: NestedPageViewControllerDataSource {
 }
 ```
 
+### 弹性、回顶与系统 TabBar
+
+- 弹性效果：Demo 设置页提供“启用弹性效果”开关，重新进入示例后生效。接入时在加载子页前设置 `nestedPageViewController.bounces = false` 即可关闭；关闭弹性也会使依赖下拉越界的刷新手势不可用。点餐双列表仍按业务要求关闭两列回弹。
+- 滚动到顶部：默认示例右上角提供“回到顶部”按钮，调用 `nestedPageViewController.scrollToTop(animated: true)`，回到当前页顶部并展开头部，不切换 Tab。
+- 系统 TabBar：这是 UIKit 导航容器的行为，不需要单独配置组件。Demo 入口统一隐藏 TabBar；业务需要保留时，在 push 前对实际推入导航栈的控制器设置 `hidesBottomBarWhenPushed = false`，并继续使用 `safeAreaLayoutGuide` 约束组件视图。继承型示例使用安全区宿主时，应设置宿主，而不是其内部的分页控制器。
+
+```swift
+// navigationController 位于 UITabBarController 下。
+let controller = StandardViewController()
+controller.hidesBottomBarWhenPushed = false
+navigationController?.pushViewController(controller, animated: true)
+```
+
 ### Objective-C 使用方式
 
 NestedPageViewController原本是用OC编写，考虑到swift是主流，于是改成了swift版本，OC工程要使用需要做一个桥接。
@@ -352,9 +365,10 @@ NestedPageViewController原本是用OC编写，考虑到swift是主流，于是�
 
 ### 切页与布局更新的位置保持
 
-`keepsContentScrollPosition` 默认是 `false`，统一控制非吸顶状态下切页和 `updateLayouts()` 时的位置保持：
+`keepsContentScrollPosition` 默认是 `true`，统一控制非吸顶状态下切页和 `updateLayouts()` 时的位置保持：
 
 ```swift
+// 默认开启；如需切页和布局更新时重置位置，可显式设为 false。
 nestedPageViewController.keepsContentScrollPosition = true
 // 修改头部高度的数据源后更新布局。
 nestedPageViewController.updateLayouts()
@@ -362,7 +376,7 @@ nestedPageViewController.updateLayouts()
 
 设为 `true` 时，更新布局会保留已加载列表的内容相对 tabStrip 底边的位置：顶部保持展开，吸顶保持吸顶，半展开时保留已折叠高度；无法承接的位置收敛到有效滚动范围。此行为适用于头部尺寸变化且子列表内容布局不变的场景，不负责数据增删或 cell 高度变化后的内容锚定。首次加载和 `rebuild()` 仍从初始位置开始。
 
-兼容性说明：以前 `updateLayouts()` 不受此属性控制、总是重置位置；现在设为 `true` 会保留位置。默认 `false` 的重置行为不变。Demo 可在设置中开启“保持内容滚动位置”，再进入“运行时修改头部高度”示例验证。
+兼容性说明：此属性的默认值已由 `false` 改为 `true`。需要沿用原先重置位置的行为时，请显式设置为 `false`。Demo 设置中的“保持内容滚动位置”也默认开启，可切换开关后重新进入“运行时修改头部高度”示例对比效果。
 
 ### 短内容的自动滚动范围
 

@@ -98,7 +98,7 @@ extension ExampleListViewController: UITableViewDelegate {
         contentViewController.title = model.title
         // 继承型示例的根视图由系统管理，使用外层容器约束其四边，不干预组件内部布局。
         let viewController: UIViewController
-        if contentViewController is NoBouncesViewController || contentViewController is IncludeTabBarViewController {
+        if contentViewController is NestedPageViewController {
             viewController = SafeAreaExampleHostViewController(contentViewController: contentViewController)
         } else {
             viewController = contentViewController
@@ -106,10 +106,7 @@ extension ExampleListViewController: UITableViewDelegate {
         viewController.title = model.title
         switch model.action {
         case .push:
-            // 如果不是IncludeTabBarViewController类型，才隐藏TabBar
-            if !(contentViewController is IncludeTabBarViewController) {
-                viewController.hidesBottomBarWhenPushed = true
-            }
+            viewController.hidesBottomBarWhenPushed = true
             navigationController?.pushViewController(viewController, animated: true)
         case .present:
             let navController = UINavigationController(rootViewController: viewController)

@@ -61,12 +61,8 @@ class ExampleTypeModel {
         let partialRefreshVC = ExampleTypeModel.model(title: "局部下拉刷新", targetClass: PartialRefreshViewController.self)
         let globalRefreshVC = ExampleTypeModel.model(title: "全局下拉刷新", targetClass: GlobalRefreshViewController.self)
         let fixedHeaderVC = ExampleTypeModel.model(title: "头部始终固定不动", targetClass: FixedHeaderViewController.self)
-        let scrollsToTopVC = ExampleTypeModel.model(title: "滚动到顶部", targetClass: ScrollsToTopViewController.self)
+        fixedHeaderVC.detailTitle = "本示例采用继承方式"
         let fullScreenGestureVC = ExampleTypeModel.model(title: "全屏返回手势", targetClass: FullScreenGestureViewController.self)
-        let noBouncesVC = ExampleTypeModel.model(title: "无弹性效果", targetClass: NoBouncesViewController.self)
-        noBouncesVC.detailTitle = "本示例采用继承方式"
-        let includeTabBarVC = ExampleTypeModel.model(title: "显示底部tabBar", targetClass: IncludeTabBarViewController.self)
-        includeTabBarVC.detailTitle = "本示例采用继承方式"
         let pinnedCollectionHeaderVC = ExampleTypeModel.model(title: "子VC的sectionHeader吸顶", targetClass: PinnedCollectionHeaderViewController.self)
         pinnedCollectionHeaderVC.detailTitle = "见第3个子vc中的collectionView的sectionHeader吸顶"
         let preloadVC = ExampleTypeModel.model(title: "预加载子视图控制器，默认选中第2个", targetClass: PreloadViewController.self)
@@ -91,10 +87,7 @@ class ExampleTypeModel {
             partialRefreshVC,
             globalRefreshVC,
             fixedHeaderVC,
-            scrollsToTopVC,
             fullScreenGestureVC,
-            noBouncesVC,
-            includeTabBarVC,
             pinnedCollectionHeaderVC,
             changeHeaderHeightVC,
             preloadVC,
