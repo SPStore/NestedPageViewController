@@ -180,6 +180,8 @@ final class FoodOrderingTests: XCTestCase {
         attach(screen, name: "点餐页-展开")
         menu.nestedPageContentScrollView.contentOffset.y = -pinnedHeight + 80
         menu.view.layoutIfNeeded()
+        XCTAssertTrue(category.bounces)
+        XCTAssertTrue(category.alwaysBounceVertical)
         attach(screen, name: "点餐页-Tab吸顶-公共轮播部分收起")
         menu.nestedPageContentScrollView.contentOffset.y = FoodMenuViewController.sharedCarouselHeight - pinnedHeight
         menu.view.layoutIfNeeded()
@@ -197,7 +199,10 @@ final class FoodOrderingTests: XCTestCase {
         XCTAssertEqual(category.indexPathForSelectedRow?.row, 0)
         XCTAssertEqual(category.superview!.frame.minY, pinnedHeight, accuracy: 0.1)
         XCTAssertFalse(menu.nestedPageContentScrollView.bounces)
+        XCTAssertTrue(category.bounces)
+        menu.expandSharedHeader()
         XCTAssertFalse(category.bounces)
+        XCTAssertFalse(category.alwaysBounceVertical)
         screen.isHidden = true
     }
 
@@ -383,10 +388,11 @@ final class FoodOrderingTests: XCTestCase {
     }
 
     func testTabIndicatorsCenterOnTitlesExcludingArrowAndReviewCount() throws {
-        let tab = FoodOrderingTabStrip(frame: CGRect(x: 0, y: 0, width: 390, height: 44))
+        let tab = FoodOrderingTabStrip(frame: CGRect(x: 0, y: 0, width: 390, height: FoodMenuViewController.tabHeight))
         tab.layoutIfNeeded()
         tab.collectionView.layoutIfNeeded()
         let line = try XCTUnwrap(tab.indicators.first as? JXCategoryIndicatorLineView)
+        XCTAssertEqual(line.verticalMargin, 8)
         for width: CGFloat in [390, 320, 700] {
             tab.frame.size.width = width
             tab.layoutIfNeeded()
@@ -429,7 +435,7 @@ final class FoodOrderingTests: XCTestCase {
     }
 
     func testChangingArrowWidthPreservesInFlightPagingPosition() throws {
-        let tab = FoodOrderingTabStrip(frame: CGRect(x: 0, y: 0, width: 390, height: 44))
+        let tab = FoodOrderingTabStrip(frame: CGRect(x: 0, y: 0, width: 390, height: FoodMenuViewController.tabHeight))
         tab.layoutIfNeeded()
         let paging = UIScrollView(frame: CGRect(x: 0, y: 0, width: 390, height: 600))
         paging.contentSize = CGSize(width: 1170, height: 600)
@@ -599,6 +605,8 @@ final class FoodOrderingTests: XCTestCase {
             f.moveCategories(by: 200 + (carousels ? sharedHeight : 0))
             // 手指已经将头部拉离吸顶位置，再松手，向下惯性应继续展开。
             f.moveCategories(by: -(carousels ? sharedHeight : 0) - 50)
+            XCTAssertFalse(f.category.bounces)
+            XCTAssertFalse(f.category.alwaysBounceVertical)
             let productOffset = f.products.contentOffset.y
             let categoryTop = f.categoryTop
             let headerBottom = f.headerBottom
@@ -676,6 +684,7 @@ final class FoodOrderingTests: XCTestCase {
     func testSwitchingTabsAndExpandingSharedHeaderDoesNotLeaveCategoryGap() {
         let f = FoodFixture()
         f.moveCategories(by: 270)
+        XCTAssertTrue(f.category.bounces)
         f.host.scrollToPage(at: 1, animated: false)
         f.other.scroll.contentOffset.y = -164
         f.host.scrollToPage(at: 0, animated: false)
@@ -684,6 +693,8 @@ final class FoodOrderingTests: XCTestCase {
         XCTAssertEqual(f.categoryOrigin, 0, accuracy: 0.1)
         XCTAssertEqual(f.productDepth, 0, accuracy: 0.1)
         XCTAssertEqual(f.categoryDepth, 70, accuracy: 0.1)
+        XCTAssertFalse(f.category.bounces)
+        XCTAssertFalse(f.category.alwaysBounceVertical)
     }
 
     func testResizeAndResetKeepGeometryConsistent() {
@@ -1030,7 +1041,8 @@ final class FoodOrderingTests: XCTestCase {
             XCTAssertEqual(f.category.indexPathForSelectedRow, index)
             XCTAssertEqual(f.categoryTop, 44, accuracy: 0.5)
             XCTAssertEqual(f.products.contentOffset.y, productTarget, accuracy: 0.5)
-            XCTAssertFalse(f.category.bounces)
+            XCTAssertTrue(f.category.bounces)
+            XCTAssertTrue(f.category.alwaysBounceVertical)
         }
     }
 

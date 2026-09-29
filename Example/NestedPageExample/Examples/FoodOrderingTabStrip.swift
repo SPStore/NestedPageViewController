@@ -68,7 +68,8 @@ final class FoodOrderingTabStrip: JXCategoryTitleImageView {
         line.indicatorColor = .systemOrange
         line.indicatorWidth = 20
         line.indicatorHeight = 3
-        line.verticalMargin = 2
+        // Tab 高度同步增加 4pt：跟踪器距底部 8pt，同时保持它与居中文字的距离不变。
+        line.verticalMargin = 8
         indicators = [line]
         accessibilityIdentifier = "food.tabs"
     }

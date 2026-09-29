@@ -2,7 +2,7 @@ import UIKit
 import NestedPageViewController
 
 final class FoodMenuViewController: UIViewController, NestedPageScrollable {
-    static let tabHeight: CGFloat = 44
+    static let tabHeight: CGFloat = 48
     static let sharedCarouselHeight: CGFloat = 144
     static let productCarouselHeight: CGFloat = 120
     private let categoryWidth: CGFloat = 92
@@ -121,6 +121,10 @@ final class FoodMenuViewController: UIViewController, NestedPageScrollable {
         guard isViewLoaded, !isUpdatingHeaderLayout else { return }
         dualCoordinator.updateHeaderHeights(expanded: headerHeight, pinned: pinnedHeaderHeight)
         dualCoordinator.updateVisibleHeaderHeight(visibleHeight)
+        // 跟随 Tab 的实际吸顶状态，切页、展开动画和布局更新也统一同步。
+        let isPinned = dualCoordinator.visibleHeaderHeight <= pinnedHeaderHeight + 0.5
+        categoryTableView.bounces = isPinned
+        categoryTableView.alwaysBounceVertical = isPinned
         productLayout.visibleContentTop = dualCoordinator.visibleSharedHeight
         productLayout.invalidateLayout()
         updateSelectedCategory()
