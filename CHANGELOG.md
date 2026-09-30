@@ -1,5 +1,17 @@
 # 更新记录
 
+## 2.2.0
+
+- `keepsContentScrollPosition` 默认值改为 `true`，切页和更新布局时默认保持子列表的阅读位置；设为 `false` 可恢复原有重置行为。
+- 新增 `setHeaderExpansionProgress(_:)`，支持业务逐帧驱动共享头部的展开与收起，并保持列表相对 Tab 的阅读位置。
+- 修复 `NestedPageTabStripView` 首次布局、容器尺寸变化及横向滑动过程中跟踪器位置不准的问题。
+- 增加外卖点餐双列表高级示例，并完善折叠屏、安全区及系统导航栏适配。
+- 核心组件自动化测试增加至 80 项。
+
+### 兼容性说明
+
+- 本版本修改了 `keepsContentScrollPosition` 的默认值。如果业务依赖切页或 `updateLayouts()` 时重置列表位置，请显式设置为 `false`。
+
 ## 2.1.1
 
 - 修复非当前页刷新、自适应 cell 高度重新估算后，切页可能出现顶部留白的问题。
