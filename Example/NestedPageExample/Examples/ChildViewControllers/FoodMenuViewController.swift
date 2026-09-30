@@ -215,9 +215,11 @@ extension FoodMenuViewController: UITableViewDataSource, UITableViewDelegate, UI
         return cell
     }
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        stopMotion()
-        selectedCategory = indexPath.row
+        // 停止旧滚动也会同步触发商品回调，先锁定本次点击，避免按旧分组把左栏拉走。
+        // 直接停止协调器的运动；页面的 stopMotion() 会清掉这个定位目标。
         categoryScrollTarget = indexPath.row
+        dualCoordinator.stopMotion()
+        selectedCategory = indexPath.row
         selectCategory(at: indexPath.row)
         dualCoordinator.prepareForPrimaryContentSelection()
         products.layoutIfNeeded()

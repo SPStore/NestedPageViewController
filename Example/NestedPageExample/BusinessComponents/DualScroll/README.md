@@ -75,7 +75,7 @@ override func loadView() {
 - `allowsSecondaryTopBounce`：初始化参数，默认 `true`。设为 `false` 时，仅在副列表的 `bounces` 开启后限制顶部越界，先处理共享区展开，再收回剩余越界量。点餐页继续按吸顶状态设置 `bounces` / `alwaysBounceVertical`，实现非吸顶完全禁用弹性、吸顶仅保留底部弹性。
 - `resetSecondaryPosition()`：仅将副列表移到当前可见区域顶部，不重置主列表。
 - `expandSharedHeader(animated:onUpdate:)`：展开核心头部和共享内容，保留两列相对可见区域顶部的阅读位置，不受 `keepsContentScrollPosition` 影响。`animated` 默认 false；传 true 时用 0.32 秒 ease-out 动画同步展开。`onUpdate` 在每帧两列补偿完成后调用，业务可在此更新分组布局或高亮。共享内容高度大于 0 时必须提供 `sharedContentView`。本方法只操作当前双列表页，不负责切页。
-- `prepareForPrimaryContentSelection()`：业务主动跳到某个分组前调用，先收起显式展开的共享区，再由业务滚到目标位置。
+- `prepareForPrimaryContentSelection()`：业务主动跳到某个分组前调用，先收起跨页保留阅读位置时悬停的头部，或显式展开的共享区，再由业务按吸顶高度定位。正常随列表滚动的头部不提前收起，仍跟随定位动画移动。
 - `revealSecondaryRect(_:)`：接收副列表内容坐标中的 rect；显示业务选中的项，但拖动 / 减速期间不会抢用户的位置。
 - `centerSecondaryRect(_:animated:)`：将副列表内容坐标中的 rect 平滑滚到实际可视区域中央，首尾和短内容按滚动边界收敛，不增加留白。默认开启动画，拖动 / 减速期间不抢位置；建议主列表跳转完成后调用。点餐示例在点击分类后使用此接口，手动滚动商品时仍只保证分类可见。
 - `visibleHeaderHeight`：当前头部实际底边，可用于业务分组标题吸顶。

@@ -110,6 +110,7 @@ final class FoodCarouselUITests: XCTestCase {
         XCTAssertTrue(slogan.isHittable)
         XCTAssertFalse(app.navigationBars.staticTexts["外卖点餐双列表"].exists)
         let expandedTabY = order.frame.minY
+        let expandedCarouselBottom = app.scrollViews["food.sharedCarousel"].frame.maxY
         XCTAssertGreaterThan(expandedTabY, app.segmentedControls["food.fulfillment"].frame.maxY)
         XCTAssertTrue(app.buttons["BackButton"].firstMatch.isHittable)
         capture("点餐封面-屏幕顶部展开-无导航标题")
@@ -123,7 +124,7 @@ final class FoodCarouselUITests: XCTestCase {
         XCTAssertFalse(app.navigationBars.staticTexts["外卖点餐双列表"].exists)
         capture("点餐封面-导航栏下方吸顶")
         order.tap()
-        waitForExpansion(of: app.scrollViews["food.sharedCarousel"], bottom: expandedTabY + 44 + 144)
+        waitForExpansion(of: app.scrollViews["food.sharedCarousel"], bottom: expandedCarouselBottom)
         XCTAssertTrue(slogan.isHittable)
         XCTAssertEqual(order.frame.minY, expandedTabY, accuracy: 2)
         capture("点餐封面-点击点餐恢复透明导航栏")
@@ -142,12 +143,13 @@ final class FoodCarouselUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["food.serviceSummary"].label.contains("免配送费"))
         XCTAssertTrue(app.staticTexts["food.serviceDetail"].label.contains("幸福路"))
         let pickupTop = order.frame.minY
+        let pickupCarouselBottom = app.scrollViews["food.sharedCarousel"].frame.maxY
         XCTAssertLessThan(pickupTop, deliveryTop - 15)
         capture("自取-门店地址与更紧凑的封面")
         app.collectionViews["food.products"].swipeUp()
         XCTAssertEqual(order.value as? String, "返回顶部")
         order.tap()
-        waitForExpansion(of: app.scrollViews["food.sharedCarousel"], bottom: pickupTop + 44 + 144)
+        waitForExpansion(of: app.scrollViews["food.sharedCarousel"], bottom: pickupCarouselBottom)
         XCTAssertTrue(control.buttons["自取"].isHittable)
         XCTAssertTrue(control.buttons["自取"].isSelected)
         control.buttons["外送"].tap()
@@ -288,10 +290,13 @@ final class FoodCarouselUITests: XCTestCase {
     }
 
     func testPartiallyVisibleCarouselKeepsPriorityAndAllowsSystemBack() {
-        let leftStart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.10, dy: 0.80))
-        leftStart.press(forDuration: 0.05, thenDragTo: leftStart.withOffset(CGVector(dx: 0, dy: -300)), withVelocity: 180, thenHoldForDuration: 0.2)
         let carousel = app.scrollViews["food.sharedCarousel"]
         let tab = foodTab(at: 0)
+        // 先收起当前封面，再收起半个共享轮播；封面高度变化后也必须进入同一测试场景。
+        let pinnedTabTop = app.navigationBars.firstMatch.frame.maxY
+        let collapseDistance = max(0, tab.frame.minY - pinnedTabTop) + carousel.frame.height / 2
+        let leftStart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.10, dy: 0.80))
+        leftStart.press(forDuration: 0.05, thenDragTo: leftStart.withOffset(CGVector(dx: 0, dy: -collapseDistance)), withVelocity: 180, thenHoldForDuration: 0.2)
         XCTAssertTrue(carousel.isHittable)
         XCTAssertLessThan(carousel.frame.minY, tab.frame.maxY)
         let firstCard = app.descendants(matching: .any)["food.sharedCarousel.card.0"].firstMatch

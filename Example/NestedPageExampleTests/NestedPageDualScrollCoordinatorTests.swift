@@ -6,6 +6,36 @@ import NestedPageViewController
 /// 不使用 Food 页面、商品布局或轮播子类，验证业务协调器可独立复用。
 @MainActor
 final class NestedPageDualScrollCoordinatorTests: XCTestCase {
+    func testPreparingSelectionDoesNotMoveNaturallyScrollingHeader() {
+        // 覆盖封面展开、共享区部分可见、完全吸顶，避免普通分类点击提前瞬间收起头部。
+        for offset: CGFloat in [-197, -97, -37, 0, 46, 600] {
+            let f = DualScrollFixture()
+            f.page.primary.contentOffset.y = offset
+            let headerHeight = f.page.coordinator.visibleSharedHeight
+            let secondaryOffset = f.page.secondary.contentOffset
+            f.page.coordinator.prepareForPrimaryContentSelection()
+            XCTAssertEqual(f.page.primary.contentOffset.y, offset, accuracy: 0.1)
+            XCTAssertEqual(f.page.coordinator.visibleSharedHeight, headerHeight, accuracy: 0.1)
+            XCTAssertEqual(f.page.secondary.contentOffset, secondaryOffset)
+        }
+    }
+
+    func testPreparingSelectionCollapsesKeptHeaderWithoutLosingReadingPosition() {
+        let f = DualScrollFixture()
+        f.pager.keepsContentScrollPosition = true
+        f.page.primary.contentOffset.y = 600
+        let primaryDepth = f.page.primary.contentOffset.y + 37 - 83
+        let secondaryDepth = f.secondaryDepth
+        f.pager.scrollToPage(at: 0, animated: false)
+        f.other.scrollView.contentOffset.y = -137
+        f.pager.scrollToPage(at: 1, animated: false)
+        XCTAssertEqual(f.page.coordinator.visibleHeaderHeight, 137, accuracy: 0.1)
+        f.page.coordinator.prepareForPrimaryContentSelection()
+        XCTAssertEqual(f.page.coordinator.visibleSharedHeight, 37, accuracy: 0.1)
+        XCTAssertEqual(f.page.primary.contentOffset.y + 37 - 83, primaryDepth, accuracy: 0.1)
+        XCTAssertEqual(f.secondaryDepth, secondaryDepth, accuracy: 0.1)
+    }
+
     func testTopBounceRestrictionPreservesDraggingToExpandSharedContent() {
         let f = DualScrollFixture(allowsSecondaryTopBounce: false)
         f.page.secondary.bounces = false
