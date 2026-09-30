@@ -6,6 +6,55 @@ import NestedPageViewController
 /// 不使用 Food 页面、商品布局或轮播子类，验证业务协调器可独立复用。
 @MainActor
 final class NestedPageDualScrollCoordinatorTests: XCTestCase {
+    func testTopBounceRestrictionPreservesDraggingToExpandSharedContent() {
+        let f = DualScrollFixture(allowsSecondaryTopBounce: false)
+        f.page.secondary.bounces = false
+        f.moveSecondary(by: 243)
+        f.page.secondary.bounces = true
+        f.moveSecondary(by: -40)
+        XCTAssertEqual(f.page.coordinator.visibleHeaderHeight, 37, accuracy: 0.1)
+        XCTAssertEqual(f.page.coordinator.visibleSharedHeight, 77, accuracy: 0.1)
+        XCTAssertEqual(f.secondaryDepth, 0, accuracy: 0.1)
+        XCTAssertEqual(f.page.primary.contentOffset.y, 6, accuracy: 0.1)
+    }
+
+    func testPinnedSecondaryCannotBounceAboveTopWhilePrimaryHasReadingPosition() {
+        let f = DualScrollFixture(allowsSecondaryTopBounce: false)
+        f.page.primary.contentOffset.y = 600
+        f.page.secondary.bounces = true
+        f.page.secondary.alwaysBounceVertical = true
+        let primaryOffset = f.page.primary.contentOffset
+        for _ in 0..<3 {
+            f.moveSecondary(by: -60)
+            XCTAssertEqual(f.secondaryDepth, 0, accuracy: 0.1)
+            XCTAssertEqual(f.page.primary.contentOffset, primaryOffset)
+        }
+        // 校正位移基准后，反向上滑立即滚动分类，而不消耗已收回的越界量。
+        f.moveSecondary(by: 20)
+        XCTAssertEqual(f.secondaryDepth, 20, accuracy: 0.1)
+        XCTAssertEqual(f.page.primary.contentOffset, primaryOffset)
+    }
+
+    func testPinnedBottomBounceRemainsAvailableForShortAndLongSecondaryContent() {
+        for height: CGFloat in [180, 1500] {
+            let f = DualScrollFixture(allowsSecondaryTopBounce: false)
+            let secondary = f.page.secondary
+            secondary.contentSize.height = height
+            f.page.coordinator.layoutContent()
+            f.moveSecondary(by: 243)
+            secondary.bounces = true
+            secondary.alwaysBounceVertical = true
+            let primaryOffset = f.page.primary.contentOffset
+            let maximum = secondary.contentSize.height - secondary.bounds.height + secondary.contentInset.bottom
+            secondary.contentOffset.y = maximum
+            f.moveSecondary(by: 40)
+            XCTAssertEqual(secondary.contentOffset.y, maximum + 40, accuracy: 0.1)
+            f.moveSecondary(by: -40)
+            XCTAssertEqual(secondary.contentOffset.y, maximum, accuracy: 0.1)
+            XCTAssertEqual(f.page.primary.contentOffset, primaryOffset)
+        }
+    }
+
     func testNavigationHeightChangesKeepSharedCollapseAndExpansionAligned() {
         let f = DualScrollFixture()
         f.pager.keepsContentScrollPosition = true
@@ -372,8 +421,9 @@ private final class DualScrollFixture: NSObject, NestedPageViewControllerDataSou
     let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 700))
     var secondaryDepth: CGFloat { page.secondary.contentOffset.y + page.coordinator.visibleSharedHeight }
 
-    override init() {
+    init(allowsSecondaryTopBounce: Bool = true) {
         super.init()
+        page.allowsSecondaryTopBounce = allowsSecondaryTopBounce
         page.pager = pager
         pager.dataSource = self
         pager.delegate = self
@@ -419,13 +469,15 @@ private final class DualScrollFixture: NSObject, NestedPageViewControllerDataSou
 
 private final class DualScrollTestPage: UIViewController, NestedPageScrollable, UIScrollViewDelegate {
     weak var pager: NestedPageViewController?
+    var allowsSecondaryTopBounce = true
     let primary = UIScrollView()
     let secondary = DualScrollTestScrollView()
     lazy var content = NestedPageDualScrollView(primaryScrollView: primary, secondaryScrollView: secondary,
                                               secondaryWidth: 71, sharedContentView: UIView())
     lazy var coordinator = NestedPageDualScrollCoordinator(
         pageViewController: pager, contentView: content,
-        expandedHeaderHeight: 197, pinnedHeaderHeight: 37, sharedContentHeight: 83
+        expandedHeaderHeight: 197, pinnedHeaderHeight: 37, sharedContentHeight: 83,
+        allowsSecondaryTopBounce: allowsSecondaryTopBounce
     )
     var nestedPageContentScrollView: UIScrollView { primary }
     override func loadView() { view = content }

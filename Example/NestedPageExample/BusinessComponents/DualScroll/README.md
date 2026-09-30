@@ -72,6 +72,7 @@ override func loadView() {
 
 其他接口：
 
+- `allowsSecondaryTopBounce`：初始化参数，默认 `true`。设为 `false` 时，仅在副列表的 `bounces` 开启后限制顶部越界，先处理共享区展开，再收回剩余越界量。点餐页继续按吸顶状态设置 `bounces` / `alwaysBounceVertical`，实现非吸顶完全禁用弹性、吸顶仅保留底部弹性。
 - `resetSecondaryPosition()`：仅将副列表移到当前可见区域顶部，不重置主列表。
 - `expandSharedHeader(animated:onUpdate:)`：展开核心头部和共享内容，保留两列相对可见区域顶部的阅读位置，不受 `keepsContentScrollPosition` 影响。`animated` 默认 false；传 true 时用 0.32 秒 ease-out 动画同步展开。`onUpdate` 在每帧两列补偿完成后调用，业务可在此更新分组布局或高亮。共享内容高度大于 0 时必须提供 `sharedContentView`。本方法只操作当前双列表页，不负责切页。
 - `prepareForPrimaryContentSelection()`：业务主动跳到某个分组前调用，先收起显式展开的共享区，再由业务滚到目标位置。

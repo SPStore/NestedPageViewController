@@ -14,6 +14,8 @@ final class NestedPageDualScrollCoordinator {
     private(set) var expandedHeaderHeight: CGFloat
     private(set) var pinnedHeaderHeight: CGFloat
     let sharedContentHeight: CGFloat
+    /// 副列表开启原生回弹时，是否允许顶部越界；不影响下拉展开共享区。
+    let allowsSecondaryTopBounce: Bool
     private(set) var visibleHeaderHeight: CGFloat
     private(set) var visibleSharedHeight: CGFloat
 
@@ -38,7 +40,8 @@ final class NestedPageDualScrollCoordinator {
     private var pagingGuards: [NestedPagePagingGestureGuard] = []
 
     init(pageViewController: NestedPageViewController?, contentView: NestedPageDualScrollView,
-         expandedHeaderHeight: CGFloat, pinnedHeaderHeight: CGFloat, sharedContentHeight: CGFloat = 0) {
+         expandedHeaderHeight: CGFloat, pinnedHeaderHeight: CGFloat, sharedContentHeight: CGFloat = 0,
+         allowsSecondaryTopBounce: Bool = true) {
         precondition(expandedHeaderHeight >= pinnedHeaderHeight && pinnedHeaderHeight >= 0)
         precondition(sharedContentHeight >= 0)
         self.pageViewController = pageViewController
@@ -46,6 +49,7 @@ final class NestedPageDualScrollCoordinator {
         self.expandedHeaderHeight = expandedHeaderHeight
         self.pinnedHeaderHeight = pinnedHeaderHeight
         self.sharedContentHeight = sharedContentHeight
+        self.allowsSecondaryTopBounce = allowsSecondaryTopBounce
         visibleHeaderHeight = expandedHeaderHeight
         visibleSharedHeight = expandedHeaderHeight + sharedContentHeight
         secondaryOffset = -visibleSharedHeight
@@ -214,6 +218,14 @@ final class NestedPageDualScrollCoordinator {
         let previous = secondaryOffset
         secondaryOffset = secondary.contentOffset.y
         guard hasInitializedSecondary else { return }
+        defer {
+            // 先处理拖拽展开，再收回剩余的顶部越界；底部仍由 UIKit 回弹。
+            // 关闭原生回弹时无需干预，0.5pt 容差避免像素舍入打断向上惯性。
+            if !allowsSecondaryTopBounce, secondary.bounces,
+               secondary.contentOffset.y < -visibleSharedHeight - 0.5 {
+                setSecondaryOffset(-visibleSharedHeight)
+            }
+        }
         // 根据主列表身份判断当前页，不假设双列表一定放在第 0 个 Tab。
         guard let pager = pageViewController,
               pager.viewController(at: pager.currentIndex)?.nestedPageContentScrollView === primary,

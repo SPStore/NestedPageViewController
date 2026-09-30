@@ -41,7 +41,8 @@ final class FoodMenuViewController: UIViewController, NestedPageScrollable {
     )
     private lazy var dualCoordinator = NestedPageDualScrollCoordinator(
         pageViewController: pager, contentView: dualScrollView,
-        expandedHeaderHeight: headerHeight, pinnedHeaderHeight: pinnedHeaderHeight, sharedContentHeight: carouselHeight
+        expandedHeaderHeight: headerHeight, pinnedHeaderHeight: pinnedHeaderHeight, sharedContentHeight: carouselHeight,
+        allowsSecondaryTopBounce: false
     )
     var nestedPageContentScrollView: UIScrollView { products }
 
@@ -122,6 +123,7 @@ final class FoodMenuViewController: UIViewController, NestedPageScrollable {
         dualCoordinator.updateHeaderHeights(expanded: headerHeight, pinned: pinnedHeaderHeight)
         dualCoordinator.updateVisibleHeaderHeight(visibleHeight)
         // 跟随 Tab 的实际吸顶状态，切页、展开动画和布局更新也统一同步。
+        // 非吸顶关闭全部回弹；吸顶开启后，由协调器限制顶部，仅保留底部回弹。
         let isPinned = dualCoordinator.visibleHeaderHeight <= pinnedHeaderHeight + 0.5
         categoryTableView.bounces = isPinned
         categoryTableView.alwaysBounceVertical = isPinned
