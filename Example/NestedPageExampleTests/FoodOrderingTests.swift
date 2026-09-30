@@ -139,13 +139,13 @@ final class FoodOrderingTests: XCTestCase {
             host.view.layoutIfNeeded()
             XCTAssertEqual(host.keepsContentScrollPosition, keepsPosition)
             XCTAssertFalse(host.headerBounces)
+            XCTAssertEqual(demo.navigationItem.rightBarButtonItems?.compactMap(\.title), ["短分类"])
 
             let menu = host.viewController(at: 0) as! FoodMenuViewController
             menu.view.layoutIfNeeded()
             menu.nestedPageContentScrollView.contentOffset.y = 700
             menu.view.layoutIfNeeded()
-            let reset = demo.navigationItem.rightBarButtonItems!.first!
-            UIApplication.shared.sendAction(reset.action!, to: reset.target, from: reset, for: nil)
+            menu.performHeaderLayoutUpdate { host.updateLayouts() }
             menu.view.layoutIfNeeded()
             XCTAssertEqual(menu.nestedPageContentScrollView.contentOffset.y,
                            keepsPosition ? 700 : -host.headerHeight, accuracy: 0.1)
@@ -191,10 +191,10 @@ final class FoodOrderingTests: XCTestCase {
         menu.nestedPageContentScrollView.contentOffset.y = 700
         menu.view.layoutIfNeeded()
         attach(screen, name: "点餐页-吸顶")
-        let reset = demo.navigationItem.rightBarButtonItems!.first!
-        UIApplication.shared.sendAction(reset.action!, to: reset.target, from: reset, for: nil)
+        menu.performHeaderLayoutUpdate { host.updateLayouts() }
+        menu.resetCategoryPosition()
         menu.view.layoutIfNeeded()
-        // 配置开启位置保留时，现有重置只更新布局，不强制清空商品阅读位置。
+        // 配置开启位置保留时，布局更新不强制清空商品阅读位置。
         XCTAssertTrue(host.keepsContentScrollPosition)
         XCTAssertEqual(menu.nestedPageContentScrollView.contentOffset.y, 700, accuracy: 0.1)
         XCTAssertEqual(category.contentOffset.y + category.superview!.frame.minY, 0, accuracy: 0.1)

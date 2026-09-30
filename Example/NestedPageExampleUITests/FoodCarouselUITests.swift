@@ -319,7 +319,7 @@ final class FoodCarouselUITests: XCTestCase {
         XCTAssertEqual(app.collectionViews["food.products"].frame.minX, 0, accuracy: 2, file: file, line: line)
     }
 
-    func testTabSwitchAndLayoutKeepProductReadingPosition() {
+    func testTabSwitchKeepsProductReadingPosition() {
         enableKeepsContentScrollPosition()
         app.collectionViews["food.products"].swipeUp()
         let visibleProduct = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "food.add.")).allElementsBoundByIndex.first { $0.isHittable }!
@@ -332,11 +332,8 @@ final class FoodCarouselUITests: XCTestCase {
         // 吸顶后的“点餐 ↑”现在是显式回顶；用横滑验证普通切页的位置保留。
         app.tables["food.reviews"].swipeRight(velocity: .slow)
         XCTAssertEqual(app.buttons[productIdentifier].frame.minY, originalY, accuracy: 2)
-        app.navigationBars.buttons["重置"].tap()
-        // keepsContentScrollPosition = true 时，现有“重置”的布局更新也保留商品位置。
-        XCTAssertEqual(app.buttons[productIdentifier].frame.minY, originalY, accuracy: 2)
         XCTAssertTrue(app.cells["food.category.0"].isHittable)
-        capture("切页与布局更新-商品位置保留")
+        capture("切页-商品位置保留")
     }
 
     func testPullingCategoriesUnderFloatingHeaderDoesNotLeaveGap() {

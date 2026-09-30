@@ -36,10 +36,12 @@ final class FoodOrderingViewController: UIViewController, NestedPageViewControll
             self.updatePagerLayouts()
             if !self.pager.keepsContentScrollPosition { self.menu.resetCategoryPosition() }
         }
-        navigationItem.rightBarButtonItems = [
-            UIBarButtonItem(title: "重置", style: .plain, target: self, action: #selector(reset)),
-            UIBarButtonItem(title: "短分类", style: .plain, target: self, action: #selector(toggleCategories))
-        ]
+        navigationItem.rightBarButtonItem = UIBarButtonItem(
+            title: "短分类",
+            style: .plain,
+            target: self,
+            action: #selector(toggleCategories)
+        )
 
         tabStrip.delegate = self
 
@@ -167,7 +169,7 @@ final class FoodOrderingViewController: UIViewController, NestedPageViewControll
         synchronizeHeader()
     }
 
-    @objc private func reset() {
+    private func reset() {
         menu.stopMotion()
         pager.scrollToPage(at: 0, animated: false)
         pager.updateLayouts()
@@ -178,7 +180,7 @@ final class FoodOrderingViewController: UIViewController, NestedPageViewControll
 
     @objc private func toggleCategories() {
         menu.usesShortCategories.toggle()
-        navigationItem.rightBarButtonItems?.last?.title = menu.usesShortCategories ? "长分类" : "短分类"
+        navigationItem.rightBarButtonItem?.title = menu.usesShortCategories ? "长分类" : "短分类"
         reset()
     }
 
