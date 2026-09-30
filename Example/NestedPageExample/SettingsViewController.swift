@@ -30,6 +30,7 @@ class NestedPageConfig: NSObject {
     
     // BOOL 类型配置
     @objc dynamic var keepsContentScrollPosition: Bool = true
+    @objc dynamic var requiresNewDragToExpandHeader: Bool = false
     @objc dynamic var showsVerticalScrollIndicator: Bool = false
     @objc dynamic var bounces: Bool = true
     @objc dynamic var allowsSwipeToChangePage: Bool = true
@@ -56,6 +57,13 @@ class NestedPageConfig: NSObject {
                 title: "显示垂直滚动指示器",
                 description: "是否显示垂直滚动条",
                 keyPath: "showsVerticalScrollIndicator",
+                type: .bool,
+                defaultValue: false
+            ),
+            NestedPageConfigItem(
+                title: "列表回顶后需再次下拉展开",
+                description: "吸顶时从内容中途下拉，回顶后须松手再拖；重新进入示例生效",
+                keyPath: "requiresNewDragToExpandHeader",
                 type: .bool,
                 defaultValue: false
             ),
@@ -102,6 +110,7 @@ class NestedPageConfig: NSObject {
     // 应用配置到NestedPageViewController
     @objc func applyConfig(to pageViewController: NestedPageViewController) {
         pageViewController.keepsContentScrollPosition = keepsContentScrollPosition
+        pageViewController.requiresNewDragToExpandHeader = requiresNewDragToExpandHeader
         pageViewController.showsVerticalScrollIndicator = showsVerticalScrollIndicator
         pageViewController.bounces = bounces
         pageViewController.allowsSwipeToChangePage = allowsSwipeToChangePage

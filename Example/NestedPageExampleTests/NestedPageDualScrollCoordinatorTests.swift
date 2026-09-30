@@ -48,6 +48,30 @@ final class NestedPageDualScrollCoordinatorTests: XCTestCase {
         XCTAssertEqual(f.page.primary.contentOffset.y, 6, accuracy: 0.1)
     }
 
+    func testPrimaryDragStartingInsideContentStopsAtTopBeforeExpandingHeader() {
+        let f = DualScrollFixture()
+        f.pager.requiresNewDragToExpandHeader = true
+        let primary = f.page.primary
+        primary.contentOffset.y = 300
+        XCTAssertEqual(f.page.coordinator.visibleSharedHeight, 37, accuracy: 0.1)
+
+        primary.simulatesDragging = true
+        primary.simulatedPan.send(.began)
+        f.page.coordinator.scrollViewWillBeginDragging(primary)
+        primary.contentOffset.y = 6
+        f.page.coordinator.scrollViewDidScroll(primary)
+        XCTAssertEqual(primary.contentOffset.y, 46, accuracy: 0.1)
+        XCTAssertEqual(f.page.coordinator.visibleSharedHeight, 37, accuracy: 0.1)
+
+        // 下一轮手势从商品顶部开始，才能继续展开共享区域。
+        primary.simulatedPan.send(.ended)
+        primary.simulatedPan.send(.began)
+        f.page.coordinator.scrollViewWillBeginDragging(primary)
+        primary.contentOffset.y = 6
+        f.page.coordinator.scrollViewDidScroll(primary)
+        XCTAssertEqual(f.page.coordinator.visibleSharedHeight, 77, accuracy: 0.1)
+    }
+
     func testPinnedSecondaryCannotBounceAboveTopWhilePrimaryHasReadingPosition() {
         let f = DualScrollFixture(allowsSecondaryTopBounce: false)
         f.page.primary.contentOffset.y = 600
@@ -500,7 +524,7 @@ private final class DualScrollFixture: NSObject, NestedPageViewControllerDataSou
 private final class DualScrollTestPage: UIViewController, NestedPageScrollable, UIScrollViewDelegate {
     weak var pager: NestedPageViewController?
     var allowsSecondaryTopBounce = true
-    let primary = UIScrollView()
+    let primary = DualScrollTestScrollView()
     let secondary = DualScrollTestScrollView()
     lazy var content = NestedPageDualScrollView(primaryScrollView: primary, secondaryScrollView: secondary,
                                               secondaryWidth: 71, sharedContentView: UIView())
@@ -510,10 +534,12 @@ private final class DualScrollTestPage: UIViewController, NestedPageScrollable, 
         allowsSecondaryTopBounce: allowsSecondaryTopBounce
     )
     var nestedPageContentScrollView: UIScrollView { primary }
+    var nestedPageContentStartY: CGFloat { 83 }
     override func loadView() { view = content }
     override func viewDidLoad() {
         super.viewDidLoad()
         primary.contentSize = CGSize(width: 390, height: 3000)
+        primary.addGestureRecognizer(primary.simulatedPan)
         secondary.contentSize = CGSize(width: 71, height: 180)
         primary.delegate = self
         secondary.delegate = self
@@ -548,6 +574,19 @@ private final class DualScrollTestScrollView: UIScrollView {
 
 /// 将手指手势状态与 UIScrollView 的 dragging / decelerating 标记独立模拟。
 final class DualScrollTestPanGestureRecognizer: UIPanGestureRecognizer {
+    private weak var observedTarget: NSObject?
+    private var observedAction: Selector?
+    override func addTarget(_ target: Any, action: Selector) {
+        super.addTarget(target, action: action)
+        observedTarget = target as? NSObject
+        observedAction = action
+    }
+    func send(_ state: UIGestureRecognizer.State) {
+        simulatedState = state
+        if let target = observedTarget, let action = observedAction {
+            _ = target.perform(action, with: self)
+        }
+    }
     var simulatedState: UIGestureRecognizer.State = .possible
     override var state: UIGestureRecognizer.State {
         get { simulatedState }

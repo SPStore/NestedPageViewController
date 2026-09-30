@@ -45,6 +45,8 @@ final class FoodMenuViewController: UIViewController, NestedPageScrollable {
         allowsSecondaryTopBounce: false
     )
     var nestedPageContentScrollView: UIScrollView { products }
+    // 共享轮播之后才是右栏独立内容（含右栏专属轮播）；手势暂停边界由核心统一处理。
+    var nestedPageContentStartY: CGFloat { carouselHeight }
 
     init(categoryTable: UITableView = UITableView(frame: .zero, style: .plain), showsCarousels: Bool = true) {
         categoryTableView = categoryTable

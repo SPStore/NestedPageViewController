@@ -10,7 +10,7 @@ import UIKit
 import Combine
 
 /// 嵌套页面滚动协调器，主要负责处理横向、竖向滚动和header之间的逻辑关系
-class NestedPageScrollCoordinator {
+class NestedPageScrollCoordinator: NSObject {
         
     weak var viewController: NestedPageViewController?
     weak var headerManager: NestedPageHeaderManager?
@@ -33,6 +33,15 @@ class NestedPageScrollCoordinator {
     private var offsetObservations: [ObjectIdentifier: AnyCancellable] = [:]
     private var scrollRanges: [ObjectIdentifier: NestedPageScrollRange] = [:]
     private var isReconcilingScrollRange = false
+
+    /// 只保存当前手势的交接边界，不缓存每个页面的阅读位置。
+    private var contentDrag = ContentDragState()
+
+    private struct ContentDragState {
+        weak var scrollView: UIScrollView?
+        var minimumOffsetY: CGFloat = 0
+        var isApplyingBoundary = false
+    }
         
     // MARK: - Initialization
     
@@ -40,6 +49,7 @@ class NestedPageScrollCoordinator {
         self.viewController = viewController
         self.headerManager = headerManager
         self.childManager = childManager
+        super.init()
     }
     
     func resetAfterLayout(pinY: CGFloat) {
@@ -127,6 +137,7 @@ class NestedPageScrollCoordinator {
         guard progress.isFinite, let viewController, let headerManager,
               !viewController.isUpdatingLayouts, !isHorizontalScrolling,
               let current = childManager?.currentContentScrollView else { return }
+        cancelContentDrag()
         // 偏移补偿和头部挂载是同一个事务，不能让中间 offset 再次驱动吸顶逻辑。
         do {
             viewController.isUpdatingLayouts = true
@@ -158,6 +169,9 @@ class NestedPageScrollCoordinator {
         guard let viewController = viewController,
               let headerManager = headerManager,
               let childManager else { return }
+
+        // 必须先收敛 offset，再移动头部、同步其他页和通知业务，避免越界的一帧传出去。
+        if contentDrag.isApplyingBoundary || enforceContentDragBoundary(scrollView) { return }
         
         let currentOffsetY = scrollView.contentOffset.y
         let supplementaryOffsetY = currentOffsetY + (headerManager.pageHeaderHeight)
@@ -405,6 +419,7 @@ class NestedPageScrollCoordinator {
         
         guard viewController.isRotating == false else { return }
 
+        cancelContentDrag()
         isHorizontalScrolling = true
         
         if lastContentScrollView == nil {
@@ -553,6 +568,57 @@ class NestedPageScrollCoordinator {
     
     // MARK: - ScrollView Observation
 
+    /// 通过原生 pan 的附加 target 记录手势起点，不替换业务 delegate。
+    @objc private func contentPanChanged(_ pan: UIPanGestureRecognizer) {
+        guard let scrollView = pan.view as? UIScrollView else { return }
+        switch pan.state {
+        case .began:
+            cancelContentDrag()
+            guard shouldHandleCurrentScrollEvent(with: scrollView),
+                  let viewController, viewController.requiresNewDragToExpandHeader,
+                  !viewController.headerAlwaysFixed, let headerManager, let childManager else { return }
+            let maximumCollapse = max(0, headerManager.coverHeight - viewController.stickyOffset)
+            let pinnedY = viewController.contentScrollViewY - maximumCollapse
+            guard maximumCollapse > 0, headerManager.pin.frame.minY <= pinnedY + 0.5 else { return }
+            let contentStart = childManager.viewController(at: childManager.currentIndex)?.nestedPageContentStartY ?? 0
+            guard contentStart.isFinite, contentStart >= 0 else { return }
+            let top = contentStart - headerManager.tabHeight - viewController.stickyOffset
+            guard scrollView.contentOffset.y > top + 0.5 else { return }
+            contentDrag = ContentDragState(scrollView: scrollView, minimumOffsetY: top)
+        case .cancelled, .failed:
+            if contentDrag.scrollView === scrollView { cancelContentDrag() }
+        default:
+            // ended 后仍可能减速，边界保留到下一轮 began 或主动操作。
+            break
+        }
+    }
+
+    func cancelContentDrag() {
+        contentDrag = ContentDragState()
+    }
+
+    /// 返回 true 表示已自行处理本次事件，调用者不再处理越界的旧 offset。
+    private func enforceContentDragBoundary(_ scrollView: UIScrollView) -> Bool {
+        guard contentDrag.scrollView === scrollView else { return false }
+        let panState = scrollView.panGestureRecognizer.state
+        let hasFinger = panState == .began || panState == .changed
+        guard viewController?.requiresNewDragToExpandHeader == true,
+              viewController?.headerAlwaysFixed == false,
+              hasFinger || scrollView.isDecelerating else {
+            cancelContentDrag()
+            return false
+        }
+        let top = contentDrag.minimumOffsetY
+        guard scrollView.contentOffset.y < top else { return false }
+        contentDrag.isApplyingBoundary = true
+        // 松手后的向下惯性在边界结束，手指仍在拖动时允许立即反向上滑。
+        if !hasFinger { scrollView.stopScrolling() }
+        scrollView.setContentOffset(CGPoint(x: scrollView.contentOffset.x, y: top), animated: false)
+        contentDrag.isApplyingBoundary = false
+        contentScrollViewDidScroll(scrollView)
+        return true
+    }
+
     func observeScrollView(_ scrollView: UIScrollView?) {
         guard let scrollView = scrollView,
               let _ = viewController,
@@ -560,6 +626,7 @@ class NestedPageScrollCoordinator {
 
         let identifier = ObjectIdentifier(scrollView)
         guard scrollRanges[identifier] == nil else { return }
+        scrollView.panGestureRecognizer.addTarget(self, action: #selector(contentPanChanged(_:)))
         let range = NestedPageScrollRange(scrollView: scrollView, pinnedHeight: minimumPinnedHeight)
         scrollRanges[identifier] = range
         range.onRangeChange = { [weak self, weak scrollView] in
@@ -670,6 +737,8 @@ class NestedPageScrollCoordinator {
     }
 
     func stopObserving(_ scrollView: UIScrollView) {
+        scrollView.panGestureRecognizer.removeTarget(self, action: #selector(contentPanChanged(_:)))
+        if contentDrag.scrollView === scrollView { cancelContentDrag() }
         let identifier = ObjectIdentifier(scrollView)
         offsetObservations.removeValue(forKey: identifier)
         scrollRanges.removeValue(forKey: identifier)?.invalidate()

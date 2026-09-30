@@ -25,6 +25,11 @@ import Combine
     ///     - `contentInsetAdjustmentBehavior`
     /// - 外部修改这些属性时，请注意避免与内部的自动设置产生冲突
     var nestedPageContentScrollView: UIScrollView { get }
+
+    /// 独立内容起点在 scrollView 内容坐标系中的 y，未实现时为 0。
+    /// 仅用于 requiresNewDragToExpandHeader 的回顶边界。例如列表开头有 144pt 共享轮播，返回 144。
+    /// 普通 tableHeaderView 属于列表内容时无需实现；不包含组件的 cover、tab 或安全区高度。
+    @objc optional var nestedPageContentStartY: CGFloat { get }
 }
 
 /// 嵌套页面视图控制器的数据源协议
@@ -179,6 +184,13 @@ open class NestedPageViewController: UIViewController {
     /// 当为 false 时：从未完全吸顶过渡到完全吸顶时，允许内容滚动视图的惯性滚动继续进行
     open var interruptsScrollingWhenTransitioningToFullStick: Bool = false
 
+    /// 吸顶且列表未回顶时，本轮拖拽及其减速只允许回到内容顶部，下一轮拖拽才能展开头部。
+    /// 默认为 false，保持连续滚动。开启后对所有子页生效，不接管子列表的 delegate。
+    /// 从顶部或非吸顶状态开始的手势不受限；scrollToTop、布局更新和主动展开仍可直接执行。
+    open var requiresNewDragToExpandHeader: Bool = false {
+        didSet { if !requiresNewDragToExpandHeader { scrollCoordinator.cancelContentDrag() } }
+    }
+
     weak open var dataSource: NestedPageViewControllerDataSource?
     weak open var delegate: NestedPageViewControllerDelegate?
         
@@ -311,6 +323,7 @@ open class NestedPageViewController: UIViewController {
     /// 将当前内容滚动视图滚动到顶部
     /// - Parameter animated: 是否使用动画效果，默认为true
     open func scrollToTop(animated: Bool = true) {
+        scrollCoordinator.cancelContentDrag()
         guard let scrollView = currentContentScrollView else { return }
         scrollView.scrollToTop(animated: animated)
     }
@@ -374,6 +387,7 @@ open class NestedPageViewController: UIViewController {
     /// - 例如头部视图高度发生变化时，可以调用此方法。
     /// - 设备旋转时会自动调用。
     open func updateLayouts() {
+        scrollCoordinator.cancelContentDrag()
         let position = keepsContentScrollPosition && !isUpdatingLayouts
             ? scrollCoordinator.captureLayoutPosition() : nil
         let wasUpdatingLayouts = isUpdatingLayouts

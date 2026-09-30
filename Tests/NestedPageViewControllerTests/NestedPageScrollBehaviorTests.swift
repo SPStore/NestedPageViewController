@@ -377,6 +377,7 @@ final class ScrollBehaviorPage: UIViewController, NestedPageScrollable {
     let scrollView = BehaviorScrollView()
     let contentTop: CGFloat
     var nestedPageContentScrollView: UIScrollView { scrollView }
+    var nestedPageContentStartY: CGFloat = 0
 
     init(contentTop: CGFloat) {
         self.contentTop = contentTop
@@ -387,6 +388,7 @@ final class ScrollBehaviorPage: UIViewController, NestedPageScrollable {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        scrollView.addGestureRecognizer(scrollView.simulatedPan)
         scrollView.frame = CGRect(
             x: 0, y: contentTop, width: view.bounds.width, height: view.bounds.height - contentTop
         )
@@ -398,5 +400,41 @@ final class ScrollBehaviorPage: UIViewController, NestedPageScrollable {
 
 final class BehaviorScrollView: UIScrollView {
     var simulatesDeceleration = false
+    let simulatedPan = BehaviorPanGestureRecognizer()
+    override var panGestureRecognizer: UIPanGestureRecognizer { simulatedPan }
     override var isDecelerating: Bool { simulatesDeceleration || super.isDecelerating }
+}
+
+/// 经由核心实际注册的 pan target 发送事件，不直接调用协调器的私有方法。
+final class BehaviorPanGestureRecognizer: UIPanGestureRecognizer {
+    private weak var observedTarget: NSObject?
+    private var observedAction: Selector?
+    private var simulatedState: UIGestureRecognizer.State = .possible
+    var hasTarget: Bool { observedTarget != nil }
+
+    override var state: UIGestureRecognizer.State {
+        get { simulatedState }
+        set { simulatedState = newValue }
+    }
+
+    override func addTarget(_ target: Any, action: Selector) {
+        super.addTarget(target, action: action)
+        observedTarget = target as? NSObject
+        observedAction = action
+    }
+
+    override func removeTarget(_ target: Any?, action: Selector?) {
+        super.removeTarget(target, action: action)
+        if target as? NSObject === observedTarget {
+            observedTarget = nil
+            observedAction = nil
+        }
+    }
+
+    func send(_ state: UIGestureRecognizer.State) {
+        simulatedState = state
+        if let target = observedTarget, let action = observedAction {
+            _ = target.perform(action, with: self)
+        }
+    }
 }

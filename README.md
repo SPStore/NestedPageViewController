@@ -390,6 +390,16 @@ nestedPageViewController.updateLayouts()
 
 兼容性说明：此属性的默认值已由 `false` 改为 `true`。需要沿用原先重置位置的行为时，请显式设置为 `false`。Demo 设置中的“保持内容滚动位置”也默认开启，可切换开关后重新进入“运行时修改头部高度”示例对比效果。
 
+### 列表回顶后再次下拉展开头部
+
+```swift
+nestedPageViewController.requiresNewDragToExpandHeader = true // 默认 false
+```
+
+开启后，如果拖拽开始时头部已吸顶、当前列表尚未回顶，本轮拖拽及其减速最多回到内容顶部；松手后再次下拉才展开头部。该行为对所有子页生效，不需要转发子列表 delegate。从顶部或非吸顶状态开始的手势仍连续滚动，程序化 `scrollToTop()` 和 `setHeaderExpansionProgress(_:)` 不受此限制。
+
+普通列表无需额外配置。如果列表开头有随页面收起的共享内容，可在 `NestedPageScrollable` 子页实现 `nestedPageContentStartY`，返回独立内容起点的内容坐标（点餐页返回共享轮播高度）。组件自动扣除 Tab 和 `stickyOffset` 计算暂停位置。Demo 设置页提供“列表回顶后需再次下拉展开”开关，修改后重新进入示例生效。
+
 ### 短内容的自动滚动范围
 
 `autoAdjustsContentSizeMinimumHeight` 默认是 `true`。短列表、空列表也会获得足够的滚动范围，使标签栏可以吸顶并在切页时保持位置。适用于原生 `UITableView`、Flow Layout、Compositional Layout，不要求自定义列表或 layout。

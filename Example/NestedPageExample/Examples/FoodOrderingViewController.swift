@@ -3,7 +3,7 @@ import NestedPageViewController
 import JXCategoryView
 
 /// 双列表实验：共享店铺头部 / 全宽轮播，右侧另有独立轮播，分类保留原生拖拽和减速。
-/// 进入页面时读取设置页的位置保留开关，其他配置保持固定，避免改变双列表的实验条件。
+/// 进入页面时读取设置页的位置保留与分段下拉开关，其余双列表配置保持固定。
 final class FoodOrderingViewController: UIViewController, NestedPageViewControllerDataSource, NestedPageViewControllerDelegate {
     private let pager = NestedPageViewController()
     private let cover = FoodShopCoverView()
@@ -53,6 +53,7 @@ final class FoodOrderingViewController: UIViewController, NestedPageViewControll
             pager.containerScrollView.topEdgeEffect.isHidden = true
         }
         pager.keepsContentScrollPosition = NestedPageConfig.shared.keepsContentScrollPosition
+        pager.requiresNewDragToExpandHeader = NestedPageConfig.shared.requiresNewDragToExpandHeader
         menu.pager = pager
         menu.onAdd = { [weak self] in
             guard let self else { return }

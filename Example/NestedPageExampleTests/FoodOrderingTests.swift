@@ -123,10 +123,15 @@ final class FoodOrderingTests: XCTestCase {
     func testActualDemoReadsKeepsContentScrollPositionConfiguration() {
         let config = NestedPageConfig.shared
         let originalValue = config.keepsContentScrollPosition
-        defer { config.keepsContentScrollPosition = originalValue }
+        let originalDragPolicy = config.requiresNewDragToExpandHeader
+        defer {
+            config.keepsContentScrollPosition = originalValue
+            config.requiresNewDragToExpandHeader = originalDragPolicy
+        }
 
         for keepsPosition in [false, true] {
             config.keepsContentScrollPosition = keepsPosition
+            config.requiresNewDragToExpandHeader = keepsPosition
             let screen = UIWindow(frame: UIScreen.main.bounds)
             screen.windowScene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
             let demo = FoodOrderingViewController()
@@ -138,6 +143,10 @@ final class FoodOrderingTests: XCTestCase {
             let host = demo.children.compactMap { $0 as? NestedPageViewController }.first!
             host.view.layoutIfNeeded()
             XCTAssertEqual(host.keepsContentScrollPosition, keepsPosition)
+            XCTAssertEqual(host.requiresNewDragToExpandHeader, keepsPosition)
+            let configured = NestedPageViewController()
+            config.applyConfig(to: configured)
+            XCTAssertEqual(configured.requiresNewDragToExpandHeader, keepsPosition)
             XCTAssertFalse(host.headerBounces)
             XCTAssertEqual(demo.navigationItem.rightBarButtonItems?.compactMap(\.title), ["短分类"])
 
@@ -191,14 +200,18 @@ final class FoodOrderingTests: XCTestCase {
         menu.nestedPageContentScrollView.contentOffset.y = 700
         menu.view.layoutIfNeeded()
         attach(screen, name: "点餐页-吸顶")
+        let readingCategory = category.indexPathForSelectedRow
+        XCTAssertNotNil(readingCategory)
         menu.performHeaderLayoutUpdate { host.updateLayouts() }
         menu.resetCategoryPosition()
+        XCTAssertEqual(category.indexPathForSelectedRow?.row, 0)
         menu.view.layoutIfNeeded()
         // 配置开启位置保留时，布局更新不强制清空商品阅读位置。
         XCTAssertTrue(host.keepsContentScrollPosition)
         XCTAssertEqual(menu.nestedPageContentScrollView.contentOffset.y, 700, accuracy: 0.1)
         XCTAssertEqual(category.contentOffset.y + category.superview!.frame.minY, 0, accuracy: 0.1)
-        XCTAssertEqual(category.indexPathForSelectedRow?.row, 0)
+        // 商品阅读位置未重置，布局同步后高亮应重新跟随当前商品分组，而不是固定在首分类。
+        XCTAssertEqual(category.indexPathForSelectedRow, readingCategory)
         XCTAssertEqual(category.superview!.frame.minY, pinnedHeight, accuracy: 0.1)
         XCTAssertFalse(menu.nestedPageContentScrollView.bounces)
         XCTAssertTrue(category.bounces)

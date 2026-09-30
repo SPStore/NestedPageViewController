@@ -440,14 +440,59 @@ final class FoodCarouselUITests: XCTestCase {
         wait(for: [finished], timeout: 3)
     }
 
+    func testCoreDragBoundaryAcrossOrderingAndReviews() {
+        setConfiguration("requiresNewDragToExpandHeader", enabled: true)
+        let products = app.collectionViews["food.products"]
+        let firstCategory = app.cells["food.category.0"]
+        if !firstCategory.isHittable { products.swipeUp(velocity: .slow) }
+        XCTAssertTrue(firstCategory.isHittable)
+        firstCategory.tap() // 独立轮播之后的第一组，确保商品已有阅读深度。
+        let order = foodTab(at: 0)
+        XCTAssertEqual(order.value as? String, "返回顶部")
+        let pinnedY = order.frame.minY
+        let origin = app.coordinate(withNormalizedOffset: .zero)
+
+        for index in [0, 1] {
+            if index == 1 {
+                foodTab(at: 1).tap()
+                let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.72, dy: 0.83))
+                let distance = order.frame.minY - pinnedY + 120
+                start.press(forDuration: 0.05, thenDragTo: start.withOffset(CGVector(dx: 0, dy: -distance)),
+                            withVelocity: 180, thenHoldForDuration: 0.3)
+            }
+            XCTAssertEqual(order.frame.minY, pinnedY, accuracy: 2)
+            let start = origin.withOffset(CGVector(dx: app.frame.width * 0.72, dy: order.frame.maxY + 45))
+            let end = start.withOffset(CGVector(dx: 0, dy: 430))
+            start.press(forDuration: 0.05, thenDragTo: end, withVelocity: 220, thenHoldForDuration: 0.3)
+            XCTAssertEqual(order.frame.minY, pinnedY, accuracy: 2, "第一轮到内容顶部后应保持吸顶")
+            if index == 0 { XCTAssertFalse(app.scrollViews["food.sharedCarousel"].isHittable) }
+            start.press(forDuration: 0.05, thenDragTo: end, withVelocity: 220, thenHoldForDuration: 0.3)
+            XCTAssertGreaterThan(order.frame.minY, pinnedY + 20, "第二轮下拉应展开头部")
+        }
+
+        // 商家是只有四行的短列表：吸顶后已经在内容顶部，可在第一轮下拉直接展开。
+        foodTab(at: 2).tap()
+        app.tables["food.merchant"].swipeUp(velocity: .slow)
+        XCTAssertEqual(order.frame.minY, pinnedY, accuracy: 2)
+        let start = origin.withOffset(CGVector(dx: app.frame.width * 0.72, dy: order.frame.maxY + 45))
+        start.press(forDuration: 0.05, thenDragTo: start.withOffset(CGVector(dx: 0, dy: 240)),
+                    withVelocity: 180, thenHoldForDuration: 0.3)
+        XCTAssertGreaterThan(order.frame.minY, pinnedY + 20)
+    }
+
     private func enableKeepsContentScrollPosition() {
+        setConfiguration("keepsContentScrollPosition", enabled: true)
+    }
+
+    private func setConfiguration(_ key: String, enabled: Bool) {
         // 配置只保存在内存中：从设置页开启，再重新进入示例，验证实际接入路径。
         app.buttons["BackButton"].firstMatch.tap()
         app.tabBars.buttons["设置"].tap()
-        let toggle = app.cells.containing(.staticText, identifier: "keepsContentScrollPosition").switches.firstMatch
+        let toggle = app.cells.containing(.staticText, identifier: key).switches.firstMatch
         XCTAssertTrue(toggle.waitForExistence(timeout: 3))
-        if toggle.value as? String != "1" { toggle.tap() }
-        XCTAssertEqual(toggle.value as? String, "1")
+        let expectedValue = enabled ? "1" : "0"
+        if toggle.value as? String != expectedValue { toggle.tap() }
+        XCTAssertEqual(toggle.value as? String, expectedValue)
         // 导航栈变化时系统可能用「示例」或「示例列表」作为标签，固定返回第一个 Tab。
         app.tabBars.buttons.element(boundBy: 0).tap()
         app.cells.containing(.staticText, identifier: "外卖点餐双列表").firstMatch.tap()
