@@ -69,6 +69,17 @@
     <td><img src="https://github.com/SPStore/SPExmapleResurces/blob/main/NestedPageViewController/自定义标签栏2.gif" width="250" alt="自定义标签栏2"></td>
 </table>
 
+## 高级功能演示
+
+<table>
+  <tr bgcolor="#f2f2f2">
+    <td width="250" align="center"><strong>外卖点餐双列表</strong></td>
+  </tr>
+  <tr>
+    <td><img src="https://github.com/SPStore/SPExmapleResurces/blob/main/NestedPageViewController/外卖点餐双列表.gif" width="250" alt="外卖点餐双列表"></td>
+  </tr>
+</table>
+
 ## 系统要求
 
 - iOS 13.0+
@@ -346,7 +357,7 @@ extension YourNestedPageViewController: NestedPageViewControllerDataSource {
 
 ### 弹性、回顶与系统 TabBar
 
-- 弹性效果：Demo 设置页提供“启用弹性效果”开关，重新进入示例后生效。接入时在加载子页前设置 `nestedPageViewController.bounces = false` 即可关闭；关闭弹性也会使依赖下拉越界的刷新手势不可用。点餐双列表仍按业务要求关闭两列回弹。
+- 弹性效果：Demo 设置页提供“启用弹性效果”开关，重新进入示例后生效。接入时在加载子页前设置 `nestedPageViewController.bounces = false` 即可关闭；关闭弹性也会使依赖下拉越界的刷新手势不可用。点餐双列表关闭右列表回弹；左列表非吸顶时关闭回弹，吸顶后仅保留底部回弹。
 - 滚动到顶部：默认示例右上角提供“回到顶部”按钮，调用 `nestedPageViewController.scrollToTop(animated: true)`，回到当前页顶部并展开头部，不切换 Tab。
 - 系统 TabBar：这是 UIKit 导航容器的行为，不需要单独配置组件。Demo 入口统一隐藏 TabBar；业务需要保留时，在 push 前对实际推入导航栈的控制器设置 `hidesBottomBarWhenPushed = false`，并继续使用 `safeAreaLayoutGuide` 约束组件视图。继承型示例使用安全区宿主时，应设置宿主，而不是其内部的分页控制器。
 
