@@ -1,42 +1,76 @@
 import UIKit
 import NestedPageViewController
 
-/// Demo 的可复用业务组件，不属于基础库发布内容。所有方法在主线程调用。
+/// 协调“右侧主列表 + 左侧副列表”的垂直滚动。
+///
+/// 本类是 Demo 中的可复用业务组件，不属于 NestedPageViewController 基础库的发布内容。
+/// 点餐页中，`primary` 是右侧商品列表，也是 NestedPageViewController 认识的子页列表；
+/// `secondary` 是左侧分类列表。两列共享 Tab 上方的组件头部和 Tab 下方的业务内容。
+///
+/// 垂直结构（展开状态）：
+/// ```
+/// [ Cover + Tab ]       <- 组件头部，高度 expandedHeaderHeight
+/// [ 共享轮播图 ]          <- Tab 下方的业务共享内容，高度 sharedContentHeight
+/// [ 左侧分类 | 右侧商品 ] <- 两列各自的独立内容
+/// ```
+/// 吸顶后，组件头部只剩 `pinnedHeaderHeight`，共享轮播图完全收起。
 ///
 /// 接入约定：
 /// - 主列表是当前子页的 nestedPageContentScrollView；共享内容位于主列表内容开头。
-/// - expandedHeaderHeight / pinnedHeaderHeight 是同一坐标系下展开 / 吸顶后的头部底边。
-/// - sharedContentHeight 仅指 Tab 以下的共享内容，不包含主列表独立内容。
+/// - `expandedHeaderHeight` / `pinnedHeaderHeight` 是同一坐标系下，展开 / 吸顶时 Tab 底边的 y 值。
+/// - `sharedContentHeight` 仅指 Tab 下方的共享内容，不包含两个列表的独立内容。
 /// - 页面转发布局、主副列表 delegate 和实际头部高度；本类不抢占任何 delegate。
 /// - 本类拥有副列表的 inset / offset / 裁剪几何；主列表 inset 仍由核心与业务配置。
 final class NestedPageDualScrollCoordinator {
+    /// 承载两个列表和共享内容的容器视图。
     let contentView: NestedPageDualScrollView
+    /// 头部完全展开时，Tab 底边在 contentView 坐标系中的 y 值。
     private(set) var expandedHeaderHeight: CGFloat
+    /// 头部吸顶时，Tab 底边在 contentView 坐标系中的 y 值。
     private(set) var pinnedHeaderHeight: CGFloat
+    /// Tab 下方共享内容的完整高度；点餐页中对应共享轮播图。
     let sharedContentHeight: CGFloat
     /// 副列表开启原生回弹时，是否允许顶部越界；不影响下拉展开共享区。
     let allowsSecondaryTopBounce: Bool
+    /// 当前可见的组件头部高度，取值范围为 pinnedHeaderHeight...expandedHeaderHeight。
     private(set) var visibleHeaderHeight: CGFloat
+    /// 当前两列顶部需要避让的总高度，即可见头部 + 剩余共享内容。
     private(set) var visibleSharedHeight: CGFloat
 
     private weak var pageViewController: NestedPageViewController?
+    /// 右侧主列表；负责驱动 NestedPageViewController 头部折叠。
     private var primary: UIScrollView { contentView.primaryScrollView }
+    /// 左侧副列表；拥有独立的滚动位置。
     private var secondary: UIScrollView { contentView.secondaryScrollView }
+    /// 完全展开时，列表上方的总共享高度（组件头部 + 业务共享内容）。
     private var initialSharedHeight: CGFloat { expandedHeaderHeight + sharedContentHeight }
+    /// 从完全展开到完全吸顶，共享区最多可收起的距离。
     private var maximumSharedCollapse: CGFloat { initialSharedHeight - pinnedHeaderHeight }
+    /// 共享区目前已经收起的距离。
     private var collapsedSharedHeight: CGFloat { initialSharedHeight - visibleSharedHeight }
+    /// 主列表独立内容已向上滚过的深度；0 表示尚未越过共享内容。
     private var primaryContentDepth: CGFloat { primary.contentOffset.y + visibleSharedHeight - sharedContentHeight }
+    /// 上一次已处理的副列表 offset，用于计算本次滚动增量。
     private var secondaryOffset: CGFloat
+    /// 副列表的 inset 和初始 offset 是否已完成首次配置。
     private var hasInitializedSecondary = false
+    /// 协调器正在修改副列表，用于忽略这些程序化滚动回调。
     private var isUpdatingSecondary = false
+    /// 当前是副列表在反向驱动主列表，避免两列相互递归补偿。
     private var isDrivingFromSecondary = false
+    /// 正在同一帧内更新头部与两列的几何，页面同步回调应暂时跳过。
     private(set) var isUpdatingSharedHeader = false
+    /// 共享区展开动画是否正在运行。
     var isAnimatingSharedHeader: Bool { expansionAnimation != nil }
     private var expansionAnimation: SharedHeaderExpansionAnimation?
-    // 显式展开后，共享内容可见量不能再由主列表 offset 单独推导。
+    /// 点击 Tab 显式展开后，共享内容的剩余可见高度。
+    /// 此时共享区处于“悬浮”中间态，不能只根据主列表 offset 反推。
     private var floatingSharedContentHeight: CGFloat?
+    /// 上一次主列表内容在 Tab 下方的逻辑位置，用于判断本次滚动方向。
     private var lastPrimaryPosition: CGFloat?
+    /// 横向切 Tab 时的观察；切页一开始就停止副列表惯性。
     private var pagingObservation: NSKeyValueObservation?
+    /// 已注册的内部横向滚动手势保护器，例如共享轮播图和商品轮播图。
     private var pagingGuards: [NestedPagePagingGestureGuard] = []
 
     init(pageViewController: NestedPageViewController?, contentView: NestedPageDualScrollView,
@@ -128,8 +162,11 @@ final class NestedPageDualScrollCoordinator {
         layoutSharedContent()
     }
 
-    /// 展开店铺头部及共享内容，保留两列各自相对可见区域的阅读位置。
-    /// 有共享内容时，需要通过 contentView.sharedContentView 提供独立展示层。
+    /// 展开店铺头部及 Tab 下方的共享内容，保留两列各自相对可见区域的阅读位置。
+    /// - Parameters:
+    ///   - animated: 是否使用逐帧几何动画展开；关闭减少动效时会直接完成。
+    ///   - onUpdate: 每帧完成两列补偿后回调，业务层可在此刷新布局或选中状态。
+    /// 有共享内容时，需要通过 `contentView.sharedContentView` 提供独立展示层。
     func expandSharedHeader(animated: Bool = false, onUpdate: (() -> Void)? = nil) {
         guard let pager = pageViewController,
               pager.viewController(at: pager.currentIndex)?.nestedPageContentScrollView === primary,
@@ -266,6 +303,7 @@ final class NestedPageDualScrollCoordinator {
         primary.setContentOffset(CGPoint(x: primary.contentOffset.x, y: primary.contentOffset.y + consumed), animated: false)
     }
 
+    /// 从两个列表的 `scrollViewWillBeginDragging` 转发，手指接管一列时停止另一列的运动。
     func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
         stopExpansionAnimation()
         if scrollView === primary { stopSecondaryMotion() }
@@ -302,7 +340,8 @@ final class NestedPageDualScrollCoordinator {
         setSecondaryOffset(target, animated: animated && secondary.window != nil && !UIAccessibility.isReduceMotionEnabled)
     }
 
-    /// 任意 UIScrollView / UICollectionView 都可注册；自身横纵方向判断仍由该视图负责。
+    /// 让内部横向滚动视图比页面横向切 Tab 手势优先识别。
+    /// 任意 UIScrollView / UICollectionView 都可注册；横纵方向判断仍由该视图自身负责。
     func prioritizeHorizontalScrolling(in scrollViews: [UIScrollView]) {
         guard let pager = pageViewController else { return }
         for scrollView in scrollViews {

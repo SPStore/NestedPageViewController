@@ -315,13 +315,6 @@ open class NestedPageViewController: UIViewController {
         scrollView.scrollToTop(animated: animated)
     }
 
-    /// 立即展开共享头部，保留已加载列表相对 Tab 底边的阅读位置。
-    /// 与 scrollToTop 不同，本方法不会将内容滚回首项；不受 keepsContentScrollPosition 开关影响。
-    /// 仅处理组件头部，Tab 下方的业务共享内容仍由业务层协调。
-    open func expandHeader() {
-        setHeaderExpansionProgress(1)
-    }
-
     /// 立即设置头部展开比例（0 为吸顶，1 为完全展开），保留列表相对 Tab 的阅读位置。
     /// 可由业务动画逐帧驱动；切页过程中不调整头部，不包含 Tab 以下的业务共享内容。
     open func setHeaderExpansionProgress(_ progress: CGFloat) {
