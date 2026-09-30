@@ -156,7 +156,7 @@ final class NestedPageLayoutPositionTests: XCTestCase {
         let fixture = ScrollBehaviorFixture()
         fixture.coverHeight = 800
         fixture.host.updateLayouts()
-        fixture.host.autoAdjustsContentSizeMinimumHeight = false
+        fixture.host.automaticallyExtendsScrollRange = false
         fixture.pages.forEach { $0.scrollView.contentSize.height = 100 }
         fixture.scroll(to: -644)
         XCTAssertEqual(fixture.headerY, -200, accuracy: 0.001)

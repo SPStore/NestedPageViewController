@@ -15,6 +15,26 @@ final class ExampleSafeAreaTests: XCTestCase {
         XCTAssertTrue(pager.keepsContentScrollPosition)
     }
 
+    func testScrollRangeSettingUsesRenamedProperty() throws {
+        let config = NestedPageConfig.shared
+        let originalValue = config.automaticallyExtendsScrollRange
+        defer { config.automaticallyExtendsScrollRange = originalValue }
+        let items = config.getAllConfigItems()
+        let item = try XCTUnwrap(items.first { $0.keyPath == "automaticallyExtendsScrollRange" })
+        XCTAssertEqual(item.defaultValue as? Bool, true)
+        XCTAssertEqual(item.title, "自动补足短内容滚动范围")
+        XCTAssertFalse(items.contains { $0.keyPath == "autoAdjustsContentSizeMinimumHeight" })
+
+        let pager = NestedPageViewController()
+        for enabled in [false, true] {
+            // 设置页通过 keyPath 读写配置，确保改名后 KVC 与配置应用链路都正常。
+            config.setValue(enabled, forKey: item.keyPath)
+            XCTAssertEqual(config.value(forKey: item.keyPath) as? Bool, enabled)
+            config.applyConfig(to: pager)
+            XCTAssertEqual(pager.automaticallyExtendsScrollRange, enabled)
+        }
+    }
+
     func testBounceSettingAppliesToEveryDefaultPage() throws {
         let config = NestedPageConfig.shared
         let originalBounces = config.bounces

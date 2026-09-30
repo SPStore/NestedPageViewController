@@ -1,5 +1,16 @@
 # 更新记录
 
+## 2.3.0
+
+- 新增 `requiresNewDragToExpandHeader`：吸顶且列表尚未回顶时，本轮下拉及减速只回到内容顶部，下一轮拖拽才展开头部；默认关闭，对所有子页面统一生效。
+- `NestedPageScrollable` 新增可选的 `nestedPageContentStartY`，支持带共享轮播等前置内容的子页面声明独立内容起点。
+- 将 `autoAdjustsContentSizeMinimumHeight` 更名为 `automaticallyExtendsScrollRange`，默认值和滚动行为不变；旧名称保留为弃用别名，示例设置与接入文档改用新名称。
+- Demo 设置页增加对应开关，点餐、评价和商家页面共用核心滚动策略；核心自动化测试增加至 92 项。
+
+### 兼容性说明
+
+- 本版本没有破坏性变更。旧属性 `autoAdjustsContentSizeMinimumHeight` 仍可读写，Xcode 会提示迁移到 `automaticallyExtendsScrollRange`。
+
 ## 2.2.0
 
 - `keepsContentScrollPosition` 默认值改为 `true`，切页和更新布局时默认保持子列表的阅读位置；设为 `false` 可恢复原有重置行为。

@@ -9,7 +9,7 @@
   <a href="https://swift.org/"><img src="https://img.shields.io/badge/Swift-5.0-orange.svg"></a>
   <a href="https://developer.apple.com/ios/"><img src="https://img.shields.io/badge/iOS-13.0%2B-blue.svg"></a>
   <a href="https://github.com/SPStore/NestedPageViewController/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg"></a>
-  <a href="https://cocoapods.org/pods/NestedPageViewController"><img src="https://img.shields.io/badge/pod-v2.2.0-brightgreen.svg"></a>
+  <a href="https://cocoapods.org/pods/NestedPageViewController"><img src="https://img.shields.io/badge/pod-v2.3.0-brightgreen.svg"></a>
   <a href="https://swift.org/package-manager/"><img src="https://img.shields.io/badge/SPM-compatible-brightgreen.svg"></a>
 </p>
 
@@ -402,9 +402,11 @@ nestedPageViewController.requiresNewDragToExpandHeader = true // 默认 false
 
 ### 短内容的自动滚动范围
 
-`autoAdjustsContentSizeMinimumHeight` 默认是 `true`。短列表、空列表也会获得足够的滚动范围，使标签栏可以吸顶并在切页时保持位置。适用于原生 `UITableView`、Flow Layout、Compositional Layout，不要求自定义列表或 layout。
+`automaticallyExtendsScrollRange` 默认是 `true`。短列表、空列表也会获得足够的滚动范围，使标签栏可以吸顶并在切页时保持位置。适用于原生 `UITableView`、Flow Layout、Compositional Layout，不要求自定义列表或 layout。
 
-属性名称为兼容旧版保留。实现使用组件管理的 `contentInset.bottom` 补足空间，不再通过 KVO 回写 `contentSize`；列表的真实 `contentSize` 仍由其布局决定。数据、视口尺寸、头部高度变化时重新计算，长列表不额外补足；关闭该属性或移除子页面时移除自动补足量。滚动条不包含这部分空白补足量。
+实现使用组件管理的 `contentInset.bottom` 补足空间，不再通过 KVO 回写 `contentSize`；列表的真实 `contentSize` 仍由其布局决定。数据、视口尺寸、头部高度变化时重新计算，长列表不额外补足；关闭该属性或移除子页面时移除自动补足量。滚动条不包含这部分空白补足量。
+
+兼容性说明：旧名称 `autoAdjustsContentSizeMinimumHeight` 保留为弃用别名，读写均转发到新属性，不维护两套状态。旧调用仍可编译，Xcode 会提示迁移到 `automaticallyExtendsScrollRange`；若业务子类覆写了旧属性，也应同步迁移到新名称。Demo 设置页对应“自动补足短内容滚动范围”。
 
 设为 `false` 时不会补足短内容。切到短列表或内容缩短后，如果原来的折叠位置超出该页的实际滚动范围，组件会同步回退列表位置并展开 header，避免头部留白；因此不保证短列表仍能保持吸顶。能够承接原位置的长列表不受影响。
 

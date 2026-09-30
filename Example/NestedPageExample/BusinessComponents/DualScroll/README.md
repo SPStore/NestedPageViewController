@@ -1,6 +1,6 @@
 # 双列表滚动业务组件
 
-这是 Demo 内的业务组件，不属于发布的 `NestedPageViewController` 基础库；依赖方向仅为业务组件 → 核心公开 API。核心提供 `expandHeader()` 和可控的 `setHeaderExpansionProgress(_:)`（只调整头部并保留阅读位置），不包含双列表或轮播逻辑。`Package.swift` 与 podspec 不引入业务组件。
+这是 Demo 内的业务组件，不属于发布的 `NestedPageViewController` 基础库；依赖方向仅为业务组件 → 核心公开 API。核心提供可控的 `setHeaderExpansionProgress(_:)`（只调整头部并保留阅读位置），不包含双列表或轮播逻辑。`Package.swift` 与 podspec 不引入业务组件。
 
 ## 职责
 

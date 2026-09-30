@@ -159,11 +159,18 @@ open class NestedPageViewController: UIViewController {
     }
     
     /// 是否自动补足短内容到达吸顶位置所需的滚动范围，默认 true。
-    /// 保留原属性名；通过独立管理的 bottom inset 补足，不再改写列表布局生成的 contentSize。
+    /// 通过独立管理的 bottom inset 补足，不改写列表布局生成的 contentSize。
     /// 为 false 时移除自动补足量，保留业务 bottom inset 和安全区。
     /// 短列表无法承接吸顶位置时会展开 header，与列表的实际位置保持一致。
-    open var autoAdjustsContentSizeMinimumHeight: Bool = true {
+    open var automaticallyExtendsScrollRange: Bool = true {
         didSet { scrollCoordinator.updateScrollRanges() }
+    }
+
+    /// 兼容旧名称，读写均转发到 automaticallyExtendsScrollRange。
+    @available(*, deprecated, renamed: "automaticallyExtendsScrollRange")
+    open var autoAdjustsContentSizeMinimumHeight: Bool {
+        get { automaticallyExtendsScrollRange }
+        set { automaticallyExtendsScrollRange = newValue }
     }
     
     /// 默认显示的页面索引，默认为0（即第一个页面）

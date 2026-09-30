@@ -146,11 +146,40 @@ final class NestedPageScrollRangeTests: XCTestCase {
         scrollView.contentOffset.y = -44
         XCTAssertTrue(host.isSticked)
 
-        host.autoAdjustsContentSizeMinimumHeight = false
+        host.automaticallyExtendsScrollRange = false
 
         XCTAssertEqual(scrollView.contentInset.bottom, 0)
         assertUnpaddedPageIsAligned(host: host, dataSource: dataSource)
         XCTAssertFalse(host.isSticked)
+    }
+
+    /// 有意使用弃用名称，验证旧调用仍可读写且立即更新实际滚动范围。
+    func testLegacyPropertySharesStateAndScrollRangeWithRenamedProperty() {
+        let dataSource = TestPages(kind: .flow)
+        let host = makeHost(dataSource: dataSource)
+        let scrollView = dataSource.pages[0].nestedPageContentScrollView
+        let originalSize = scrollView.contentSize
+        host.setContentBottomInset(34, for: scrollView)
+        XCTAssertTrue(host.automaticallyExtendsScrollRange)
+        XCTAssertTrue(host.autoAdjustsContentSizeMinimumHeight)
+
+        host.autoAdjustsContentSizeMinimumHeight = false
+        XCTAssertFalse(host.automaticallyExtendsScrollRange)
+        XCTAssertEqual(scrollView.contentInset.bottom, 34)
+
+        host.automaticallyExtendsScrollRange = true
+        XCTAssertTrue(host.autoAdjustsContentSizeMinimumHeight)
+        XCTAssertEqual(maximumOffsetY(scrollView), -44, accuracy: 0.001)
+
+        host.automaticallyExtendsScrollRange = false
+        XCTAssertFalse(host.autoAdjustsContentSizeMinimumHeight)
+        XCTAssertEqual(scrollView.contentInset.bottom, 34)
+
+        host.autoAdjustsContentSizeMinimumHeight = true
+        XCTAssertTrue(host.automaticallyExtendsScrollRange)
+        XCTAssertEqual(maximumOffsetY(scrollView), -44, accuracy: 0.001)
+        XCTAssertEqual(scrollView.contentSize, originalSize)
+        XCTAssertEqual(host.contentBottomInset(for: scrollView), 34)
     }
 
     func testDisabledAdjustmentHandlesCurrentContentShrinking() {
@@ -233,7 +262,7 @@ final class NestedPageScrollRangeTests: XCTestCase {
         scrollView.contentInset.top += 60
         scrollView.contentOffset.y = -308
 
-        host.autoAdjustsContentSizeMinimumHeight = false
+        host.automaticallyExtendsScrollRange = false
 
         XCTAssertEqual(scrollView.contentInset.top, 308)
         XCTAssertEqual(scrollView.contentOffset.y, -308)
@@ -322,7 +351,7 @@ final class NestedPageScrollRangeTests: XCTestCase {
     private func makeHost(dataSource: TestPages, automatic: Bool = true) -> NestedPageViewController {
         let host = NestedPageViewController()
         host.dataSource = dataSource
-        host.autoAdjustsContentSizeMinimumHeight = automatic
+        host.automaticallyExtendsScrollRange = automatic
         host.keepsContentScrollPosition = true
         host.view.frame = CGRect(x: 0, y: 0, width: 390, height: 587)
         host.view.layoutIfNeeded()

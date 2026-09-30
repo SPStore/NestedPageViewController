@@ -108,7 +108,7 @@ final class NestedPageContentShrinkTests: XCTestCase {
 
     private func makeEstimatedHeightFixture(automatic: Bool = true) -> ScrollBehaviorFixture {
         let fixture = ScrollBehaviorFixture()
-        fixture.host.autoAdjustsContentSizeMinimumHeight = automatic
+        fixture.host.automaticallyExtendsScrollRange = automatic
         fixture.host.view.frame.size.height = 835
         fixture.host.view.layoutIfNeeded()
         fixture.host.updateLayouts()
@@ -144,7 +144,7 @@ final class NestedPageContentShrinkTests: XCTestCase {
         let host = NestedPageViewController()
         host.dataSource = dataSource
         host.keepsContentScrollPosition = true
-        host.autoAdjustsContentSizeMinimumHeight = automatic
+        host.automaticallyExtendsScrollRange = automatic
         host.view.frame = CGRect(x: 0, y: 0, width: 390, height: 587)
         host.view.layoutIfNeeded()
         dataSource.pages[0].nestedPageContentScrollView.contentOffset.y = recentOffset

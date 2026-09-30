@@ -651,7 +651,7 @@ class NestedPageScrollCoordinator: NSObject {
 
     private var minimumPinnedHeight: CGFloat? {
         guard let viewController = viewController, let headerManager = headerManager,
-              viewController.autoAdjustsContentSizeMinimumHeight else { return nil }
+              viewController.automaticallyExtendsScrollRange else { return nil }
         return headerManager.tabHeight + viewController.stickyOffset
     }
 
@@ -688,7 +688,7 @@ class NestedPageScrollCoordinator: NSObject {
     /// 关闭补足时，短列表未必能承接共享 header 的折叠位置；以当前页的真实滚动范围为准。
     private func reconcileUnpaddedCurrentPage() {
         guard let viewController = viewController, let headerManager = headerManager,
-              !viewController.autoAdjustsContentSizeMinimumHeight,
+              !viewController.automaticallyExtendsScrollRange,
               !viewController.headerAlwaysFixed, !viewController.isRotating,
               !isReconcilingScrollRange,
               let scrollView = viewController.currentContentScrollView,
