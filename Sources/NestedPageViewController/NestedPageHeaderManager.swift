@@ -176,8 +176,10 @@ class NestedPageHeaderManager {
         
         if let pageHeader = pageHeader(at: currentIndex) {
             let contentScrollViewY = viewController.contentScrollViewY
-            // 满足这个条件，一定不是吸顶
-            if pin.frame.minY > -(coverHeight - viewController.stickyOffset - contentScrollViewY) {
+            // 固定模式始终补偿滚动偏移，包括 cover 高度为 0、pin 恰好位于吸顶边界的情况。
+            // 非固定模式仅在尚未吸顶时挂回 pageHeader。
+            if viewController.headerAlwaysFixed ||
+                pin.frame.minY > -(coverHeight - viewController.stickyOffset - contentScrollViewY) {
                 let coveredFrame = pin.convert(pin.bounds, to: pageHeader)
                 moveHeaderContentViewToPageHeader(pageHeader, updatingY: coveredFrame.minY)
             }

@@ -90,6 +90,20 @@ final class NestedPageScrollBehaviorTests: XCTestCase {
         XCTAssertTrue(fixture.events.isEmpty)
     }
 
+    func testFixedTabStripDoesNotScrollWhenCoverHeightIsZero() {
+        let fixture = ScrollBehaviorFixture()
+        fixture.coverHeight = 0
+        fixture.host.headerAlwaysFixed = true
+        fixture.host.updateLayouts()
+        fixture.events.removeAll()
+
+        fixture.scroll(to: 100)
+
+        XCTAssertEqual(fixture.headerY, 0, accuracy: 0.001)
+        XCTAssertTrue(fixture.isHeaderAttachedToCurrentPage)
+        XCTAssertTrue(fixture.events.isEmpty)
+    }
+
     func testStickyOffsetPreservesExistingReportedStickSemantics() {
         let fixture = ScrollBehaviorFixture(stickyOffset: 36)
         fixture.scroll(to: -80)
