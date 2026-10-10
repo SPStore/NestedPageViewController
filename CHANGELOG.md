@@ -1,5 +1,9 @@
 # 更新记录
 
+## 2.3.1
+
+- 修复未设置 cover、仅显示 tabStrip 时，开启 `headerAlwaysFixed` 后标签栏仍会随内容滚动的问题。
+
 ## 2.3.0
 
 - 新增 `requiresNewDragToExpandHeader`：吸顶且列表尚未回顶时，本轮下拉及减速只回到内容顶部，下一轮拖拽才展开头部；默认关闭，对所有子页面统一生效。
