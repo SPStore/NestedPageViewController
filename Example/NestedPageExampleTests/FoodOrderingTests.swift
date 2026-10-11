@@ -772,6 +772,18 @@ final class FoodOrderingTests: XCTestCase {
         }
     }
 
+    func testCarouselPanDirectionAllowsDecelerationTakeover() {
+        XCTAssertTrue(FoodCarouselView.shouldRecognizePan(translation: .zero, velocity: .zero))
+        XCTAssertTrue(FoodCarouselView.shouldRecognizePan(
+            translation: CGPoint(x: -20, y: 2),
+            velocity: CGPoint(x: -200, y: 20)
+        ))
+        XCTAssertFalse(FoodCarouselView.shouldRecognizePan(
+            translation: CGPoint(x: 2, y: -20),
+            velocity: CGPoint(x: 20, y: -200)
+        ))
+    }
+
     func testLeftDragConsumesCoverThenSharedCarouselThenOnlyCategories() {
         let f = FoodFixture(carousels: true)
         f.moveCategories(by: 200)

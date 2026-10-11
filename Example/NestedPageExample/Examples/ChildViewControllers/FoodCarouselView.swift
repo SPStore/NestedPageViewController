@@ -47,10 +47,19 @@ final class FoodCarouselView: UIScrollView {
 
     override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
         if gestureRecognizer === panGestureRecognizer {
-            let velocity = panGestureRecognizer.velocity(in: self)
-            guard abs(velocity.x) > abs(velocity.y) else { return false }
+            guard Self.shouldRecognizePan(
+                translation: panGestureRecognizer.translation(in: self),
+                velocity: panGestureRecognizer.velocity(in: self)
+            ) else { return false }
         }
         return super.gestureRecognizerShouldBegin(gestureRecognizer)
+    }
+
+    static func shouldRecognizePan(translation: CGPoint, velocity: CGPoint) -> Bool {
+        let direction = max(abs(translation.x), abs(translation.y)) > 0.5 ? translation : velocity
+        // 减速中再次触摸时，UIScrollView 会先用零位移的 pan 接管并终止惯性。
+        // 允许这个中间状态继续识别，否则本次拖动只会停住轮播，下一次才能滚动。
+        return max(abs(direction.x), abs(direction.y)) <= 0.5 || abs(direction.x) > abs(direction.y)
     }
 
     override func layoutSubviews() {
